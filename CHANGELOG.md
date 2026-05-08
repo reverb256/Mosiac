@@ -16,7 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 Polish pass on 3.15.0's Channel Media Gallery and Personas.
 
 ### Added
-- **Persona prefix changed to `>>` with autocomplete (#86, #5349).** The persona send prefix is now `>>Name your message` (instead of the colliding `Name:` form, which made it impossible to mention someone else's persona in normal chat). Typing `>>` at the start of a message opens an autocomplete dropdown of your personas; arrow keys / Tab / Enter pick one and insert the full prefix.
+- **Persona prefix changed to `::` with autocomplete (#86, #5349).** The persona send prefix is now `::Name your message` (the previous `>>` was treated as a nested blockquote by the markdown renderer whenever the persona lookup didn't match). Typing `::` at the start of a message opens an autocomplete dropdown of your personas; arrow keys / Tab / Enter pick one and insert the full prefix.
 - **`@PersonaName` mentions (#5349).** Persona names now resolve as `@`-mentions and ping the persona's owner. Names are gathered from messages as they render, so any persona that has spoken in the channel becomes mentionable.
 - **Jump-to-message button on photo + video tiles in the gallery (#5350).** Each tile now has an arrow button in the top-right corner that closes the gallery and scrolls to the source message. Hovering or focusing the tile reveals the button.
 - **Click-to-play video lightbox in the gallery (#5350).** Clicking a video tile now opens an inline player overlay with full controls instead of silently closing the gallery. The jump button (above) is preserved for navigating to the source message.

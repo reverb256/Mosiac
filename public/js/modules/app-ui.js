@@ -5494,9 +5494,10 @@ _openVideoLightbox(src) {
 
 // ── Personas (#86, #5349) ──────────────────────────────
 
-// Persona prefix autocomplete: when the input STARTS with ">>" we suggest
-// the user's own personas. Using ">>" as a deliberate punctuation trigger
-// (matched server-side by the same prefix) means the persona owner can
+// Persona prefix autocomplete: when the input STARTS with "::" we suggest
+// the user's own personas. Using "::" as a deliberate, unambiguous trigger
+// that doesn't conflict with any markdown syntax (">>" would render as a
+// nested blockquote if the persona lookup fails). The persona owner can
 // type their persona's name normally in chat without accidentally routing
 // the message through the persona.
 _checkPersonaTrigger(inputEl) {
@@ -5504,7 +5505,7 @@ _checkPersonaTrigger(inputEl) {
   if (!input) return;
   this._personaInput = input;
   const text = input.value;
-  const m = text.match(/^>>\s*([^\s>:]{0,32})$/);
+  const m = text.match(/^::\s*([^\s:]{0,32})$/);
   if (m) {
     this._personaTriggerQuery = m[1].toLowerCase();
     // Lazy load personas the first time the user reaches for them
@@ -5550,7 +5551,7 @@ _showPersonaDropdown() {
     const avatar = p.avatar
       ? `<img src="${esc(p.avatar)}" class="persona-dd-avatar" alt="">`
       : `<span class="persona-dd-avatar persona-dd-avatar-fallback">${esc((p.name || '?').charAt(0).toUpperCase())}</span>`;
-    return `<div class="mention-item${i === 0 ? ' active' : ''}" data-persona-name="${esc(p.name)}">${avatar}<strong>${esc(p.name)}</strong> <span class="mention-item-handle">&gt;&gt;${esc(p.name)} message</span></div>`;
+    return `<div class="mention-item${i === 0 ? ' active' : ''}" data-persona-name="${esc(p.name)}">${avatar}<strong>${esc(p.name)}</strong> <span class="mention-item-handle">::${esc(p.name)} message</span></div>`;
   }).join('');
   dropdown.style.display = 'block';
   dropdown.querySelectorAll('[data-persona-name]').forEach(item => {
@@ -5582,12 +5583,12 @@ _navigatePersonaDropdown(direction) {
 _insertPersona(name) {
   const input = this._personaInput || document.getElementById('message-input');
   if (!input) return;
-  // Replace any leading >>partial with >>FullName + space, then position
+  // Replace any leading ::partial with ::FullName + space, then position
   // cursor after, so the user can immediately type their message body.
   const text = input.value;
-  const rest = text.replace(/^>>\s*[^\s>:]{0,32}/, '');
-  input.value = `>>${name} ` + rest.replace(/^\s+/, '');
-  const caret = ('>>' + name + ' ').length;
+  const rest = text.replace(/^::\s*[^\s:]{0,32}/, '');
+  input.value = `::${name} ` + rest.replace(/^\s+/, '');
+  const caret = ('::' + name + ' ').length;
   input.selectionStart = input.selectionEnd = caret;
   input.focus();
   this._hidePersonaDropdown();
