@@ -4055,7 +4055,7 @@ _addServer() {
   } else {
     // Adding new server
     const icon = iconInput || null;
-    if (this.serverManager.add(name, url, icon)) {
+    if (this.serverManager.add(name, url, icon, { userInitiated: true })) {
       document.getElementById('add-server-modal').style.display = 'none';
       this._renderServerBar();
       this._showToast(t('toasts.server_added', { name }), 'success');

@@ -86,15 +86,22 @@ class ServerManager {
     localStorage.setItem('haven_servers', JSON.stringify(this.servers));
   }
 
-  add(name, url, icon = null) {
+  add(name, url, icon = null, opts = {}) {
     url = this._normalizeUrl(url);
     if (this.servers.find(s => this._normalizeUrl(s.url) === url)) return false;
 
-    // User explicitly adding — clear from removed set so sync won't fight it
     const removed = this._loadRemoved();
-    if (removed.has(url)) {
-      removed.delete(url);
-      this._saveRemoved(removed);
+    if (opts.userInitiated) {
+      // User explicitly adding — clear from removed set so sync won't fight it
+      if (removed.has(url)) {
+        removed.delete(url);
+        this._saveRemoved(removed);
+      }
+    } else if (removed.has(url)) {
+      // Bootstrap / sync path: never resurrect a server the user has removed.
+      // This was the root cause of removed servers (e.g. http://localhost:3000)
+      // re-appearing on every restart via the Desktop history merge.
+      return false;
     }
 
     this.servers.push({ name, url, icon, addedAt: Date.now() });
