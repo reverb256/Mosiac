@@ -619,7 +619,41 @@ _openEditProfileModal(profile) {
 
 // ── Voice Users ───────────────────────────────────────
 
-_renderVoiceUsers(users) {
+_renderVoiceUsers(users, channelCode) {
+  // Track which channel this list belongs to so cached re-renders
+  // (stream info, nickname refresh, webcam status) preserve channel
+  // context for the self-injection guard below.
+  if (channelCode !== undefined) {
+    this._lastVoiceUsersChannel = channelCode;
+  }
+  // Belt-and-suspenders self-injection. The voice-users-update socket
+  // handler already injects the local user when we're in voice on the
+  // channel being rendered, but some call paths (re-render on stream
+  // info update, nickname refresh, channel switch) replay a cached
+  // _lastVoiceUsers that might pre-date our join, and other call paths
+  // pass through a stale list received before we appeared in the
+  // server roster. If we are in voice on THIS channel right now and the
+  // list doesn't include us, prepend ourselves so the right panel never
+  // shows the "Voice Connected" bar with the user absent from the
+  // participant list. Guarded by channelCode to avoid injecting self
+  // into a different channel's voice roster when we're viewing one
+  // channel but voice-connected to another. (#missing-self-voice-panel)
+  const renderChannel = (channelCode !== undefined)
+    ? channelCode
+    : this._lastVoiceUsersChannel;
+  if (Array.isArray(users) && this.voice && this.voice.inVoice && this.user &&
+      renderChannel && renderChannel === this.voice.currentChannel) {
+    const myId = this.user.id;
+    if (myId != null && !users.some(u => u.id === myId)) {
+      users = [{
+        id: myId,
+        username: this.user.displayName || this.user.username,
+        roleColor: this.user.roleColor || null,
+        isMuted: !!this.voice.isMuted,
+        isDeafened: !!this.voice.isDeafened
+      }, ...users];
+    }
+  }
   this._lastVoiceUsers = users; // Cache for re-render on stream info updates
   const el = document.getElementById('voice-users');
   if (users.length === 0) {

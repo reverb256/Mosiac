@@ -478,6 +478,19 @@ module.exports = function register(socket, ctx) {
     if (!data || typeof data !== 'object') return;
     const code = typeof data.code === 'string' ? data.code.trim() : '';
     if (!code || !/^[a-f0-9]{8}$/i.test(code)) return;
+    // Prune stale entries (sockets that have already disconnected but
+    // weren't cleaned up by handleVoiceLeave for whatever reason) BEFORE
+    // computing the response. Without this, after a server restart the
+    // requester can momentarily see the OLD pre-restart roster (or worse,
+    // duplicates while clients reconnect) and the right voice panel /
+    // sidebar count would stick on those ghosts until the next
+    // broadcastVoiceUsers tick.
+    const removed = pruneStaleVoiceUsers(code);
+    if (removed && removed.length) {
+      // Re-broadcast the freshly-pruned roster to everyone in the room
+      // so other clients also reconcile, not just the requester.
+      broadcastVoiceUsers(code);
+    }
     const channel = db.prepare('SELECT id FROM channels WHERE code = ?').get(code);
     const channelId = channel ? channel.id : null;
     const room = voiceUsers.get(code);

@@ -4,17 +4,17 @@
 //           notifications, volume sliders, status bar
 // ═══════════════════════════════════════════════════════════
 
-import SocketMethods   from './modules/app-socket.js?v=3.16.1';
-import UIBindMethods   from './modules/app-ui.js?v=3.16.1';
-import MediaMethods    from './modules/app-media.js?v=3.16.1';
-import ContextMethods  from './modules/app-context.js?v=3.16.1';
-import ChannelMethods  from './modules/app-channels.js?v=3.16.1';
-import MessageMethods  from './modules/app-messages.js?v=3.16.1';
-import UserMethods     from './modules/app-users.js?v=3.16.1';
-import VoiceMethods    from './modules/app-voice.js?v=3.16.1';
-import UtilityMethods  from './modules/app-utilities.js?v=3.16.1';
-import AdminMethods    from './modules/app-admin.js?v=3.16.1';
-import PlatformMethods from './modules/app-platform.js?v=3.16.1';
+import SocketMethods   from './modules/app-socket.js?v=3.16.12';
+import UIBindMethods   from './modules/app-ui.js?v=3.16.12';
+import MediaMethods    from './modules/app-media.js?v=3.16.12';
+import ContextMethods  from './modules/app-context.js?v=3.16.12';
+import ChannelMethods  from './modules/app-channels.js?v=3.16.12';
+import MessageMethods  from './modules/app-messages.js?v=3.16.12';
+import UserMethods     from './modules/app-users.js?v=3.16.12';
+import VoiceMethods    from './modules/app-voice.js?v=3.16.12';
+import UtilityMethods  from './modules/app-utilities.js?v=3.16.12';
+import AdminMethods    from './modules/app-admin.js?v=3.16.12';
+import PlatformMethods from './modules/app-platform.js?v=3.16.12';
 
 class HavenApp {
   constructor() {

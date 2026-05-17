@@ -841,7 +841,7 @@ _setupSocketListeners() {
       ];
     }
     if ((isViewing || isInVoice) && localStorage.getItem('haven_hide_voice_panel') !== 'true') {
-      this._renderVoiceUsers(users);
+      this._renderVoiceUsers(users, data.channelCode);
     }
     // (#5347 v3.15.4) Keep the left sidebar in sync with the right panel.
     // Previously the right panel was driven by voice-users-update and the
@@ -884,6 +884,20 @@ _setupSocketListeners() {
     if (myId && !inThisVoice && usersList.some(u => u.id === myId)) {
       usersList = usersList.filter(u => u.id !== myId);
       count = Math.max(0, count - 1);
+    }
+    // Symmetric self-inject: if we ARE in voice on this channel but the
+    // count snapshot doesn't include us (race after server restart /
+    // reconnect, briefly pruned-then-re-registered), add ourselves so the
+    // sidebar badge doesn't drop below the real number and the channel
+    // voice list under the indicator still shows us. (#missing-self-voice-panel)
+    if (myId && inThisVoice && !usersList.some(u => u.id === myId)) {
+      usersList = [{
+        id: myId,
+        username: (this.user.displayName || this.user.username),
+        isMuted: !!(this.voice && this.voice.isMuted),
+        isDeafened: !!(this.voice && this.voice.isDeafened)
+      }, ...usersList];
+      count = count + 1;
     }
     if (count > 0) {
       this.voiceCounts[data.code] = count;

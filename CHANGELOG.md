@@ -11,6 +11,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.16.12] — 2026-05-16
+
+### Fixed
+- **Voice chat: missing-self in the right panel after a server restart / reconnect race.** When the server briefly didn't have us in the voice roster at the moment a `voice-users-update` was rendered (re-render from a stale `_lastVoiceUsers` cache, a `request-voice-users` reply that arrived before our `voice-join` was processed, or a `voice-count-update` snapshot taken during a prune-and-re-register window), the right voice panel could show every other participant but omit ourselves while the status bar still said "Voice Connected". `_renderVoiceUsers()` now belt-and-suspenders injects the local user when we're in voice on the channel being rendered, tracked via a new `_lastVoiceUsersChannel` so the injection is correctly scoped (no false positives when viewing one channel while voice-connected to another). The `voice-count-update` handler does the same for the sidebar badge so the count never undershoots.
+- **Voice chat: stale roster after a server reboot.** `request-voice-users` server-side now prunes stale voice entries before responding, and re-broadcasts the fresh roster to everyone in the room if any ghosts were removed. Previously, clients that reconnected after a server restart could momentarily see the pre-restart roster (or duplicate entries while peers were still reconnecting) until the next broadcast tick.
+- **"Start Voice did nothing, I clicked it 15 times and got 15 toasts at once."** Three converging bugs caused the multi-press / multi-toast behaviour during a server outage:
+  - `_fetchIceServers()` had no timeout, so when the server was unreachable the fetch hung until the network stack gave up, leaving `voice.join()` in-flight for tens of seconds while the user mashed the button. It now aborts after 4 seconds and falls back to the default STUN-only ICE config.
+  - The Start Voice button accepted re-entrant presses while a join was in-flight. The first click would buffer a `voice-join` socket emit (socket.io queues emits while disconnected) and every subsequent click would buffer another, plus a stray `voice-leave` from the in-flight `voice.leave()` called at the top of `voice.join()`. All of them fired against the freshly-reconnected socket once the server came back, producing the toast flood and duplicate session churn. `_joinVoice()` now sets an `_joiningVoice` flag, disables the join buttons for the duration, and ignores re-entrant presses until the join resolves.
+  - `voice.join()` no longer attempts to emit `voice-join` while the socket is disconnected — it bails immediately and returns `false`, so a click during the outage produces a clear "Disconnected" toast instead of silently queueing work. The `connect` handler still auto-rejoins voice from the persisted `haven_voice_channel` once the socket is back, so users don't need to click anything.
+
+---
+
 ## [3.16.11] — 2026-05-16
 
 ### Fixed
