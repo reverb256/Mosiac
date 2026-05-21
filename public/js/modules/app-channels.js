@@ -2677,6 +2677,11 @@ _resyncDesktopBadgeOnFocus() {
 _fireNativeNotification(message, channelCode, opts) {
   // Server-level mute: suppress all notifications from this server instance.
   if (localStorage.getItem('haven_server_muted') === '1') return;
+  // Per-channel mute: client-side muted channels list (defense-in-depth — callers
+  // should also check, but bots / webhooks have user_id=null which can slip through
+  // edge cases such as channels-list re-seeding or future notification paths).
+  const _mutedChsNotif = JSON.parse(localStorage.getItem('haven_muted_channels') || '[]');
+  if (_mutedChsNotif.includes(channelCode)) return;
   // Check per-type notification toggles
   const n = this.notifications;
   if (opts && opts.isMention && n.mentionsEnabled) { /* allowed */ }

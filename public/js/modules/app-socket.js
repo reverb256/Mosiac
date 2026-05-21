@@ -354,7 +354,16 @@ _setupSocketListeners() {
     // Seed client-side unreadCounts from server-reported values so the
     // desktop badge, tab title, and DM section badge stay in sync.
     // Only import counts for channels we haven't touched yet this session.
+    // Skip muted channels entirely — server has no knowledge of client-side
+    // mute state, so bot/webhook messages can leave stale unread counts on
+    // the server that would otherwise re-appear on every reconnect.
+    const _mutedChsAtSeed = new Set(JSON.parse(localStorage.getItem('haven_muted_channels') || '[]'));
     for (const ch of channels) {
+      if (_mutedChsAtSeed.has(ch.code)) {
+        // Pre-populate with 0 so future channels-list snapshots won't re-seed.
+        if (!(ch.code in this.unreadCounts)) this.unreadCounts[ch.code] = 0;
+        continue;
+      }
       if (!(ch.code in this.unreadCounts) && ch.unreadCount > 0) {
         this.unreadCounts[ch.code] = ch.unreadCount;
       }
