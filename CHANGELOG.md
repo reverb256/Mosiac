@@ -15,6 +15,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.17.0] — 2026-05-23
+
+### Added
+- **Pinned messages PiP floating panel (#5370).** A pop-out button (⧉) in the pinned-panel header opens a draggable, resizable picture-in-picture overlay so you can browse and manage pins without leaving the message feed. Supports jump-to-message, unpin (with confirm), and live updates when pins change. The panel closes automatically on channel switch so stale pins never linger.
+- **Fullscreen button for pins PiP.** A maximize button in the PiP header expands the panel to fill the viewport, matching the behavior of the DM PiP.
+
+### Fixed
+- **Muted channels now block bot/webhook notifications and badge re-seeding.** Bot and webhook messages (sent with `user_id = null`) could bypass the mute check in the notification path — added a per-channel mute guard in `_fireNativeNotification` as defense-in-depth. Additionally, on reconnect or any channel-list refresh, the server's stale unread count was being re-imported for muted channels (the server has no knowledge of client-side mute state), so badges could reappear every session even for channels you'd muted. The `channels-list` handler now skips muted channels when seeding unread counts.
+- **DM status dot showing offline users as online (#5372).** The presence dot on DM entries was not correctly reflecting offline state in certain cases.
+- **PiP panel rendering below the message-input area (#5373).** Fixed z-index layering so PiP overlays always render above the composer toolbar.
+- **Pinned panel action buttons now right-aligned.** Layout fix so the unpin and close buttons sit flush to the right edge of the panel header.
+
+---
+
 ## [3.16.15] — 2026-05-20
 
 ### Fixed
