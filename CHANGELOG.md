@@ -15,6 +15,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.17.1] — 2026-05-23
+
+### Fixed
+- **Server fails to start with `ERR_INVALID_PACKAGE_CONFIG` on newer Node / Docker (#5374).** `package.json` in 3.17.0 contained a stray Windows-1252 em-dash byte (0x97) in the `description` field, producing invalid UTF-8. Newer Node versions (and the official Docker image) refuse to load the package and the container restart-loops. Replaced with plain ASCII so the file parses cleanly everywhere. Affects all 3.17.0 Docker deployments and self-hosted setups on Node 24+.
+
+---
+
 ## [3.17.0] — 2026-05-23
 
 ### Added
