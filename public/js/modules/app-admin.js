@@ -391,6 +391,10 @@ _applyServerSettings() {
     if (defaultTheme) {
       defaultTheme.value = this.serverSettings.default_theme || '';
     }
+    const defaultLocale = document.getElementById('default-locale-select');
+    if (defaultLocale) {
+      defaultLocale.value = this.serverSettings.default_locale || '';
+    }
     this._renderAdminThemeList();
 
     // Tunnel settings (live state, not part of Save/Cancel flow)
@@ -659,6 +663,7 @@ _snapshotAdminSettings() {
     update_banner_admin_only: this.serverSettings.update_banner_admin_only || 'false',
     admin_password_reset_enabled: this.serverSettings.admin_password_reset_enabled || 'false',
     default_theme: this.serverSettings.default_theme || '',
+    default_locale: this.serverSettings.default_locale || '',
     published_themes: this.serverSettings.published_themes || '[]',
     custom_tos: this.serverSettings.custom_tos || '',
     role_icon_sidebar: this.serverSettings.role_icon_sidebar || 'true',
@@ -784,6 +789,12 @@ _saveAdminSettings() {
     changed = true;
   }
 
+  const defaultLocale = document.getElementById('default-locale-select')?.value || '';
+  if (defaultLocale !== (snap.default_locale || '')) {
+    this.socket.emit('update-server-setting', { key: 'default_locale', value: defaultLocale });
+    changed = true;
+  }
+
   const publishedThemes = JSON.stringify(
     [...document.querySelectorAll('#admin-theme-list input[type="checkbox"]')]
       .filter(cb => cb.checked)
@@ -859,6 +870,8 @@ _cancelAdminSettings() {
     if (uba) uba.checked = snap.update_banner_admin_only === 'true';
     const dt = document.getElementById('default-theme-select');
     if (dt) dt.value = snap.default_theme || '';
+    const dl = document.getElementById('default-locale-select');
+    if (dl) dl.value = snap.default_locale || '';
     const ct = document.getElementById('custom-tos-input');
     if (ct) ct.value = snap.custom_tos || '';
   }

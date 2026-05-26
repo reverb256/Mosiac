@@ -18,9 +18,28 @@ const I18n = (() => {
   const DEFAULT   = 'en';
 
   // ── Detect preferred locale ──────────────────────────────────────────
-  function _detect() {
+  // Precedence:
+  //   1. localStorage `haven_locale` (the user's explicit choice)
+  //   2. server-configured `default_locale` from /api/public-config (#5386)
+  //   3. browser language
+  //   4. DEFAULT ('en')
+  async function _detect() {
     const stored = localStorage.getItem('haven_locale');
     if (stored && SUPPORTED.includes(stored)) return stored;
+    // Try server default — only blocks for first-time visitors with no stored
+    // choice, and uses a short timeout so a slow/offline server can't hang init.
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 1500);
+      const res = await fetch('/api/public-config', { signal: ctrl.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const cfg = await res.json();
+        if (cfg && typeof cfg.default_locale === 'string' && SUPPORTED.includes(cfg.default_locale)) {
+          return cfg.default_locale;
+        }
+      }
+    } catch { /* offline / not ready — fall through to browser detection */ }
     const browser = (navigator.language || 'en').split('-')[0].toLowerCase();
     return SUPPORTED.includes(browser) ? browser : DEFAULT;
   }
@@ -98,7 +117,7 @@ const I18n = (() => {
   function init() {
     if (_ready) return _ready;
     _ready = (async () => {
-      const locale = _detect();
+      const locale = await _detect();
       await load(locale);
       if (document.readyState === 'loading') {
         await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
@@ -109,12 +128,21 @@ const I18n = (() => {
   }
 
   // ── Change locale at runtime (e.g. from a language picker) ───────────
+  // Reloads the page after persisting the choice. applyDOM() only refreshes
+  // elements with data-i18n* attributes, so anything rendered dynamically by
+  // JS (channel list, messages, settings sections built on the fly, etc.) would
+  // otherwise keep its old-language text and make it look like the switch
+  // didn't take effect (#5386).
   async function setLocale(locale) {
     if (!SUPPORTED.includes(locale)) locale = DEFAULT;
+    // Persist immediately so the post-reload init picks up the new choice even
+    // if the locale JSON fetch is slow or fails.
+    try { localStorage.setItem('haven_locale', locale); } catch {}
     await load(locale);
     applyDOM();
-    // Re-run any page-specific setup that renders dynamic content
     document.dispatchEvent(new CustomEvent('haven:localechange', { detail: { locale } }));
+    // Hard reload to re-render dynamic content in the new language.
+    try { window.location.reload(); } catch {}
   }
 
   return {

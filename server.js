@@ -877,6 +877,7 @@ app.get('/api/public-config', (req, res) => {
     const { getDb } = require('./src/database');
     const db = getDb();
     const themeRow = db.prepare("SELECT value FROM server_settings WHERE key = 'default_theme'").get();
+    const localeRow = db.prepare("SELECT value FROM server_settings WHERE key = 'default_locale'").get();
     const titleRow = db.prepare("SELECT value FROM server_settings WHERE key = 'server_title'").get();
     const tosRow = db.prepare("SELECT value FROM server_settings WHERE key = 'custom_tos'").get();
     const nameRow = db.prepare("SELECT value FROM server_settings WHERE key = 'server_name'").get();
@@ -884,6 +885,7 @@ app.get('/api/public-config', (req, res) => {
     const adminPwResetRow = db.prepare("SELECT value FROM server_settings WHERE key = 'admin_password_reset_enabled'").get();
     res.json({
       default_theme: themeRow?.value || '',
+      default_locale: localeRow?.value || '',
       server_title: titleRow?.value || '',
       custom_tos: tosRow?.value || '',
       // Expose name + icon so the login page can brand its tab title and
@@ -897,7 +899,7 @@ app.get('/api/public-config', (req, res) => {
       admin_password_reset_enabled: adminPwResetRow?.value === 'true'
     });
   } catch {
-    res.json({ default_theme: '', server_title: '' });
+    res.json({ default_theme: '', default_locale: '', server_title: '' });
   }
 });
 

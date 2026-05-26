@@ -39,7 +39,7 @@ module.exports = function register(socket, ctx) {
       'tunnel_enabled', 'tunnel_provider', 'server_code', 'max_upload_mb', 'max_poll_options',
       'max_sound_kb', 'max_emoji_kb', 'setup_wizard_complete', 'update_banner_admin_only',
       'default_theme', 'published_themes', 'channel_sort_mode', 'channel_cat_order', 'channel_cat_sort',
-      'channel_tag_sorts', 'custom_tos', 'welcome_message', 'vanity_code',
+      'channel_tag_sorts', 'custom_tos', 'welcome_message', 'vanity_code', 'default_locale',
       'role_icon_sidebar', 'role_icon_chat', 'role_icon_after_name',
       'auto_backup_enabled', 'auto_backup_interval_hours', 'auto_backup_retention', 'auto_backup_sections',
       'session_duration_days', 'max_message_chars',
@@ -95,6 +95,10 @@ module.exports = function register(socket, ctx) {
       // Allow built-in names OR "file:name.theme.css" for published custom themes
       const validBuiltin = ['', 'haven', 'discord', 'matrix', 'fallout', 'ffx', 'ice', 'nord', 'darksouls', 'eldenring', 'bloodborne', 'cyberpunk', 'lotr', 'abyss', 'scripture', 'chapel', 'gospel', 'tron', 'halo', 'dracula', 'win95'];
       if (!validBuiltin.includes(value) && !/^file:[a-zA-Z0-9_\-. ]+\.theme\.css$/.test(value)) return;
+    }
+    if (key === 'default_locale') {
+      const validLocales = ['', 'en', 'fr', 'de', 'es', 'pl', 'ru', 'zh'];
+      if (!validLocales.includes(value)) return;
     }
     if (key === 'published_themes') {
       try {

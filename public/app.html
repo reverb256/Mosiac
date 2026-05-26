@@ -1713,14 +1713,6 @@
 
         <div class="desktop-pref-row">
           <label class="toggle-row">
-            <input type="checkbox" id="pref-debug-disable-screen-echo-cancel">
-            <span class="toggle-label" data-i18n="settings.debug_section.disable_screen_echo_cancel">Disable echo cancellation on screen-share audio</span>
-          </label>
-          <p class="settings-hint" data-i18n="settings.debug_section.disable_screen_echo_cancel_hint">When sharing a screen with system audio, the browser applies echo cancellation by default, which can make music and game audio sound thin or hollow. Turning this on disables echo cancellation for the captured screen audio so listeners hear it full-fidelity. Takes effect on the next screen share — stop and restart sharing if you changed it mid-stream. (#5379)</p>
-        </div>
-
-        <div class="desktop-pref-row">
-          <label class="toggle-row">
             <input type="checkbox" id="pref-voice-mute-on-join">
             <span class="toggle-label" data-i18n="settings.debug_section.mute_on_join">Always join voice muted</span>
           </label>
@@ -1844,6 +1836,20 @@
               </select>
             </label>
             <small class="settings-hint" data-i18n="settings.admin.default_theme_hint">New users see this theme on first visit. They can still pick their own.</small>
+            <label class="select-row" style="margin-top:8px">
+              <span data-i18n="settings.admin.default_locale">Default Language</span>
+              <select id="default-locale-select" style="max-width:160px">
+                <option value="" data-i18n="settings.admin.no_locale">Auto-detect (browser)</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="pl">🇵🇱 Polski</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="zh">🇨🇳 中文</option>
+              </select>
+            </label>
+            <small class="settings-hint" data-i18n="settings.admin.default_locale_hint">New users see Haven in this language on first visit. They can still pick their own.</small>
             <label class="select-row" style="margin-top:8px">
               <span>Welcome Message</span>
               <input type="text" id="welcome-message-input" maxlength="500" class="settings-text-input" style="max-width:280px" placeholder="e.g. Welcome {user}!">
