@@ -10243,7 +10243,11 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 1090;
+  /* Must sit above .message-input-area (99995) so the mobile slide-in
+     sidebars (z-index: 100000) and their backdrop both clear the composer.
+     Otherwise the right userlist dock and overlay end up behind the
+     textarea on the 769-900px tablet band (#5384). */
+  z-index: 99996;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -10298,7 +10302,10 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
     bottom: 0;
     width: 260px;
     min-width: 260px;
-    z-index: 1100;
+    /* 100000 sits above .message-input-area (99995) and below .modal-overlay
+       (100001). Was 1100, which left the dock hidden behind the composer on
+       769-900px (#5384). Keep in sync with the mobile-overlay (99996) band. */
+    z-index: 100000;
     transform: translateX(100%);
     transition: transform 0.25s ease;
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
@@ -10357,7 +10364,8 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
     bottom: 0;
     width: 280px;
     min-width: 280px;
-    z-index: 1100;
+    /* Above .message-input-area (99995), below .modal-overlay (100001). #5384. */
+    z-index: 100000;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
@@ -10387,7 +10395,8 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
     bottom: 0;
     width: 260px;
     min-width: 260px;
-    z-index: 1100;
+    /* Above .message-input-area (99995), below .modal-overlay (100001). #5384. */
+    z-index: 100000;
     transform: translateX(100%);
     transition: transform 0.25s ease;
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
