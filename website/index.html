@@ -1415,12 +1415,12 @@
       </div>
 
       <div class="download-card fade-in">
-        <h2>&#x2B21; Haven Server &mdash; v3.17.4</h2>
+        <h2>&#x2B21; Haven Server &mdash; v3.18.0</h2>
         <p class="download-version">Latest stable release &middot; Windows, macOS &amp; Linux &middot; ~5 MB</p>
 
         <div class="download-btn-group">
-          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.17.4.zip" class="btn btn-primary download-main">
-            <span class="icon">&#x2B07;</span> Download v3.17.4 (.zip)
+          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.0.zip" class="btn btn-primary download-main">
+            <span class="icon">&#x2B07;</span> Download v3.18.0 (.zip)
           </a>
           <div class="download-alt-links">
             <a href="https://github.com/ancsemi/Haven" target="_blank">&#9965; View on GitHub</a>
@@ -1437,7 +1437,11 @@
           <div class="version-list">
             <div class="version-list-inner">
                             <div class="version-item">
-                <div><span class="v-name">v3.17.4</span><span class="v-tag latest">Latest</span> &mdash; <strong>iOS Web fix:</strong> voice-channel audio and screen-share audio now actually play on iOS Safari, iOS Chrome, and every other iOS browser. WebKit&rsquo;s <code>MediaStreamAudioSourceNode</code> is silent for remote WebRTC tracks, so Haven&rsquo;s Web Audio routing dropped all incoming voice into a black hole on iOS &mdash; calls looked connected but you heard nothing. iOS now skips the Web Audio graph and plays incoming audio natively (trade-off: no &gt;100&#37; volume boost on iOS only). Also restored the <em>Apply voice processing to screen-share audio</em> opt-in toggle (Settings &rarr; Debug) for users sharing voice content like tutorials or podcasts.</div>
+                <div><span class="v-name">v3.18.0</span><span class="v-tag latest">Latest</span> &mdash; <strong>Server-synced nicknames (#5394):</strong> nicknames now persist server-side so they follow you to new devices and browsers (still private, only you see them). <strong>Per-channel default role (#5389):</strong> Channel Functions &rarr; &ldquo;Default Role&rdquo; picks a server role auto-granted to every current and future member of that channel. <strong>Admin-adjustable max sticker size (#5392)</strong> &mdash; bump the 1 MB ceiling up to 10 MB if you want stickers to double as a GIF library. <strong>New <code>/break</code> slash command + persona-compacting hard-stop (#5393)</strong> so back-to-back persona messages stay visually distinct for everyone. <strong>Channel auto-clear messages timer (#5390)</strong> &mdash; wipe messages on a schedule without deleting the channel itself. Fixes for screen-share reshare ghost tiles, channel-list silence watchdog (#5391), and landing-page emoji encoding.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.0.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.17.4</span> &mdash; <strong>iOS Web fix:</strong> voice-channel audio and screen-share audio now actually play on iOS Safari, iOS Chrome, and every other iOS browser. WebKit&rsquo;s <code>MediaStreamAudioSourceNode</code> is silent for remote WebRTC tracks, so Haven&rsquo;s Web Audio routing dropped all incoming voice into a black hole on iOS &mdash; calls looked connected but you heard nothing. iOS now skips the Web Audio graph and plays incoming audio natively (trade-off: no &gt;100&#37; volume boost on iOS only). Also restored the <em>Apply voice processing to screen-share audio</em> opt-in toggle (Settings &rarr; Debug) for users sharing voice content like tutorials or podcasts.</div>
                 <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.17.4.zip">Download &rarr;</a>
               </div>
               <div class="version-item">
