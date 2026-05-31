@@ -65,6 +65,7 @@ const { initDatabase } = require('./src/database');
 const { router: authRoutes, authLimiter, verifyToken } = require('./src/auth');
 const { setupSocketHandlers, sanitizeText } = require('./src/socketHandlers');
 const { startTunnel, stopTunnel, getTunnelStatus, registerProcessCleanup } = require('./src/tunnel');
+const { startDdns, getDdnsStatus, triggerDdnsNow } = require('./src/ddns');
 const { initFcm } = require('./src/fcm');
 
 const app = express();
@@ -2758,9 +2759,132 @@ function getWebhookByToken(token) {
   if (!token || typeof token !== 'string' || token.length !== 64) return null;
   const { getDb } = require('./src/database');
   return getDb().prepare(
-    'SELECT id, name, channel_id, callback_url FROM webhooks WHERE token = ? AND is_active = 1'
+    'SELECT id, name, channel_id, callback_url, can_moderate, created_by FROM webhooks WHERE token = ? AND is_active = 1'
   ).get(token);
 }
+
+// ═══════════════════════════════════════════════════════════
+// BOT MODERATION REST API (#5397) — webhook-token authenticated.
+// Each endpoint requires the bot's `can_moderate` flag to be enabled
+// by an admin via the Bot Manager. Mirrors /api/moderation/* but uses
+// webhook tokens instead of JWT bearer tokens so bots don't need a
+// user login. Audit log records the bot as actor.
+// ═══════════════════════════════════════════════════════════
+function requireModBot(req, res) {
+  const webhook = getWebhookByToken(req.params.token);
+  if (!webhook) { res.status(404).json({ error: 'Webhook not found or inactive' }); return null; }
+  if (!webhook.can_moderate) { res.status(403).json({ error: 'This bot does not have moderation permission' }); return null; }
+  return webhook;
+}
+
+// POST /api/webhooks/:token/moderation/kick
+app.post('/api/webhooks/:token/moderation/kick', webhookLimiter, express.json({ limit: '16kb' }), (req, res) => {
+  const webhook = requireModBot(req, res); if (!webhook) return;
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const { userId, channelCode, reason } = req.body || {};
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'userId required (integer)' });
+  if (!channelCode || typeof channelCode !== 'string') return res.status(400).json({ error: 'channelCode required' });
+
+  const channel = db.prepare('SELECT id FROM channels WHERE code = ?').get(channelCode);
+  if (!channel) return res.status(404).json({ error: 'Channel not found' });
+  const target = db.prepare('SELECT id, COALESCE(display_name, username) as username, is_admin FROM users WHERE id = ?').get(userId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.is_admin) return res.status(403).json({ error: 'Cannot kick an admin' });
+
+  db.prepare('DELETE FROM channel_members WHERE channel_id = ? AND user_id = ?').run(channel.id, userId);
+
+  if (io) {
+    const safeReason = typeof reason === 'string' ? reason.trim().slice(0, 200) : '';
+    for (const [, s] of io.sockets.sockets) {
+      if (s.user && s.user.id === userId) {
+        s.emit('kicked', { channelCode, reason: safeReason });
+        s.leave(`channel:${channelCode}`);
+      }
+    }
+  }
+  res.json({ success: true, message: `Kicked ${target.username}` });
+});
+
+// POST /api/webhooks/:token/moderation/ban
+app.post('/api/webhooks/:token/moderation/ban', webhookLimiter, express.json({ limit: '16kb' }), (req, res) => {
+  const webhook = requireModBot(req, res); if (!webhook) return;
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const { userId, reason } = req.body || {};
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'userId required (integer)' });
+
+  const target = db.prepare('SELECT id, COALESCE(display_name, username) as username, is_admin FROM users WHERE id = ?').get(userId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.is_admin) return res.status(403).json({ error: 'Cannot ban an admin' });
+
+  const safeReason = typeof reason === 'string' ? reason.trim().slice(0, 200) : '';
+  try {
+    db.prepare('INSERT OR REPLACE INTO bans (user_id, banned_by, reason) VALUES (?, ?, ?)').run(userId, webhook.created_by || null, safeReason);
+  } catch {
+    return res.status(500).json({ error: 'Failed to ban user' });
+  }
+
+  if (io) {
+    for (const [, s] of io.sockets.sockets) {
+      if (s.user && s.user.id === userId) { s.emit('banned', { reason: safeReason }); s.disconnect(true); }
+    }
+  }
+  res.json({ success: true, message: `Banned ${target.username}` });
+});
+
+// POST /api/webhooks/:token/moderation/unban
+app.post('/api/webhooks/:token/moderation/unban', webhookLimiter, express.json({ limit: '16kb' }), (req, res) => {
+  const webhook = requireModBot(req, res); if (!webhook) return;
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const { userId } = req.body || {};
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'userId required (integer)' });
+
+  db.prepare('DELETE FROM bans WHERE user_id = ?').run(userId);
+  const target = db.prepare('SELECT COALESCE(display_name, username) as username FROM users WHERE id = ?').get(userId);
+  res.json({ success: true, message: `Unbanned ${target ? target.username : 'user'}` });
+});
+
+// POST /api/webhooks/:token/moderation/mute  — body: { userId, duration (minutes), reason }
+app.post('/api/webhooks/:token/moderation/mute', webhookLimiter, express.json({ limit: '16kb' }), (req, res) => {
+  const webhook = requireModBot(req, res); if (!webhook) return;
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const { userId, duration, reason } = req.body || {};
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'userId required (integer)' });
+
+  const target = db.prepare('SELECT id, COALESCE(display_name, username) as username, is_admin FROM users WHERE id = ?').get(userId);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.is_admin) return res.status(403).json({ error: 'Cannot mute an admin' });
+
+  const durationMs = Number.isInteger(duration) && duration > 0 ? duration * 60 * 1000 : 10 * 60 * 1000;
+  const expiresAt = new Date(Date.now() + durationMs).toISOString();
+  const safeReason = typeof reason === 'string' ? reason.trim().slice(0, 200) : '';
+
+  db.prepare('DELETE FROM mutes WHERE user_id = ?').run(userId);
+  db.prepare('INSERT INTO mutes (user_id, muted_by, reason, expires_at) VALUES (?, ?, ?, ?)').run(userId, webhook.created_by || null, safeReason, expiresAt);
+
+  if (io) {
+    for (const [, s] of io.sockets.sockets) {
+      if (s.user && s.user.id === userId) s.emit('muted', { reason: safeReason, expiresAt });
+    }
+  }
+  res.json({ success: true, message: `Muted ${target.username} until ${expiresAt}` });
+});
+
+// POST /api/webhooks/:token/moderation/unmute
+app.post('/api/webhooks/:token/moderation/unmute', webhookLimiter, express.json({ limit: '16kb' }), (req, res) => {
+  const webhook = requireModBot(req, res); if (!webhook) return;
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const { userId } = req.body || {};
+  if (!Number.isInteger(userId)) return res.status(400).json({ error: 'userId required (integer)' });
+
+  db.prepare('DELETE FROM mutes WHERE user_id = ?').run(userId);
+  const target = db.prepare('SELECT COALESCE(display_name, username) as username FROM users WHERE id = ?').get(userId);
+  res.json({ success: true, message: `Unmuted ${target ? target.username : 'user'}` });
+});
 
 // GET /api/webhooks/:token/commands — list registered commands
 app.get('/api/webhooks/:token/commands', webhookLimiter, (req, res) => {
@@ -3738,6 +3862,31 @@ app.post('/api/admin/auto-backups/run-now', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Admin: dynamic DNS status + force-refresh ─────────────
+// Returns the last DDNS update result (provider, IP, ok/error, timestamp).
+// POST forces an immediate update — useful if the user just changed their
+// .env or believes the cached IP is stale (ISP rotation, VPN toggle, etc.).
+app.get('/api/admin/ddns/status', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const user = token ? verifyToken(token) : null;
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!verifyAdminFromDb(user)) return res.status(403).json({ error: 'Admin only' });
+  res.json(getDdnsStatus());
+});
+
+app.post('/api/admin/ddns/refresh', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const user = token ? verifyToken(token) : null;
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!verifyAdminFromDb(user)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const status = await triggerDdnsNow();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: (err && err.message) || 'Failed to refresh DDNS' });
+  }
+});
+
 // ── Admin: in-app update check + run ─────────────────────
 // Detects how Haven was installed and returns the right command (or runs it).
 // Docker is intentionally NOT auto-runnable from inside the container — we just
@@ -3981,6 +4130,8 @@ server.listen(PORT, HOST, () => {
 ╚══════════════════════════════════════════╝
   `);
   // Tunnel is now started manually via the admin panel button (no auto-start)
+  // Dynamic DNS auto-updater (kicks in only if DDNS_PROVIDER is set in .env)
+  try { startDdns(); } catch (err) { console.warn('[ddns] failed to start:', err && err.message); }
 });
 
 function gracefulShutdown(signal) {
