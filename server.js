@@ -2562,10 +2562,21 @@ app.post('/api/webhooks/:token', webhookLimiter, express.json({ limit: '64kb' })
     }
   }
 
-  // Insert the message into the DB
-  const result = db.prepare(
-    'INSERT INTO messages (channel_id, user_id, content, is_webhook, webhook_username, webhook_avatar, reply_to) VALUES (?, ?, ?, 1, ?, ?, ?)'
-  ).run(webhook.channel_id, null, content, username, avatarUrl || null, replyTo);
+  // Optional ephemeral delivery to a single recipient in this channel.
+  // Ephemeral webhook messages are not persisted to chat history.
+  const ephemeral = req.body.ephemeral === true;
+  let recipientId = null;
+  if (ephemeral) {
+    const parsedRecipientId = parseInt(req.body.recipient_id, 10);
+    if (!Number.isInteger(parsedRecipientId) || parsedRecipientId < 1) {
+      return res.status(400).json({ error: 'recipient_id is required when ephemeral is true' });
+    }
+    const member = db.prepare('SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?').get(webhook.channel_id, parsedRecipientId);
+    if (!member) {
+      return res.status(400).json({ error: 'recipient_id must be a member of this channel' });
+    }
+    recipientId = parsedRecipientId;
+  }
 
   // Build replyContext if this is a reply (so the client renders the inline preview)
   let replyContext = null;
@@ -2588,7 +2599,7 @@ app.post('/api/webhooks/:token', webhookLimiter, express.json({ limit: '64kb' })
   }
 
   const message = {
-    id: result.lastInsertRowid,
+    id: null,
     content,
     created_at: new Date().toISOString(),
     username: `[BOT] ${username}`,
@@ -2599,8 +2610,33 @@ app.post('/api/webhooks/:token', webhookLimiter, express.json({ limit: '64kb' })
     replyContext,
     reactions: [],
     is_webhook: true,
-    webhook_name: username
+    webhook_name: username,
+    ephemeral,
+    recipient_id: recipientId
   };
+
+  if (ephemeral) {
+    let deliveredSockets = 0;
+    if (io) {
+      const nsp = io.of('/');
+      for (const [, s] of nsp.sockets) {
+        if (s.user && s.user.id === recipientId) {
+          s.emit('new-message', {
+            channelCode: webhook.channel_code,
+            message
+          });
+          deliveredSockets++;
+        }
+      }
+    }
+    return res.status(200).json({ success: true, ephemeral: true, recipient_id: recipientId, delivered: deliveredSockets > 0 });
+  }
+
+  // Insert non-ephemeral messages into the DB/history.
+  const result = db.prepare(
+    'INSERT INTO messages (channel_id, user_id, content, is_webhook, webhook_username, webhook_avatar, reply_to) VALUES (?, ?, ?, 1, ?, ?, ?)'
+  ).run(webhook.channel_id, null, content, username, avatarUrl || null, replyTo);
+  message.id = result.lastInsertRowid;
 
   // Broadcast to all clients in this channel
   if (io) {

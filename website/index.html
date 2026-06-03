@@ -1415,12 +1415,12 @@
       </div>
 
       <div class="download-card fade-in">
-        <h2>&#x2B21; Haven Server &mdash; v3.21.0</h2>
+        <h2>&#x2B21; Haven Server &mdash; v3.23.0</h2>
         <p class="download-version">Latest stable release &middot; Windows, macOS &amp; Linux &middot; ~5 MB</p>
 
         <div class="download-btn-group">
-          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.21.0.zip" class="btn btn-primary download-main">
-            <span class="icon">&#x2B07;</span> Download v3.21.0 (.zip)
+          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.23.0.zip" class="btn btn-primary download-main">
+            <span class="icon">&#x2B07;</span> Download v3.23.0 (.zip)
           </a>
           <div class="download-alt-links">
             <a href="https://github.com/ancsemi/Haven" target="_blank">&#9965; View on GitHub</a>
@@ -1437,7 +1437,11 @@
           <div class="version-list">
             <div class="version-list-inner">
                             <div class="version-item">
-                <div><span class="v-name">v3.21.0</span><span class="v-tag latest">Latest</span> &mdash; <strong>Server-side per-channel mute + #5399 followup fixes.</strong> Channel mute state now lives on the server (new <code>user_channel_prefs</code> table + three endpoints), so muted channels stop pushing to mobile via FCM and to other browsers via web-push. Existing clients converge automatically on first connect. Also patches two latent SyntaxErrors (duplicate <code>const loginForm</code> in <code>auth.js</code> + orphan <code>_setupServerBar()</code> half-merge in <code>app-ui.js</code>) that had been quietly sitting in main since the v3.19.0 Guest mode merge and caused a blank login / blank app for anyone updating directly from v3.18.0. Server-side <code>/api/ice-servers</code> defaults refreshed to match the v3.20.1 client pool. Right-click &rarr; Copy image now actually copies the image (was silently rejecting due to dropped user-gesture token; rebuilt around Electron IPC for Desktop and a promise-based <code>ClipboardItem</code> for the web). Image and member context menus raised above the lightbox and PiP DM. Password eye-icon no longer overlaps the typed characters.</div>
+                <div><span class="v-name">v3.23.0</span><span class="v-tag latest">Latest</span> &mdash; <strong>Private webhook bot replies (#5404) plus the full 3.22.0 batch.</strong> Bots can now send recipient-scoped ephemeral messages via <code>POST /api/webhooks/:token</code> with <code>ephemeral: true</code> and <code>recipient_id</code>. The server validates channel membership, delivers only to the targeted user, skips history persistence, and clients show an &ldquo;Only visible to you&rdquo; pill so private bot output is clearly marked. This release also includes the previously pending v3.22.0 work from main.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.23.0.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.21.0</span> &mdash; <strong>Server-side per-channel mute + #5399 followup fixes.</strong> Channel mute state now lives on the server (new <code>user_channel_prefs</code> table + three endpoints), so muted channels stop pushing to mobile via FCM and to other browsers via web-push. Existing clients converge automatically on first connect. Also patches two latent SyntaxErrors (duplicate <code>const loginForm</code> in <code>auth.js</code> + orphan <code>_setupServerBar()</code> half-merge in <code>app-ui.js</code>) that had been quietly sitting in main since the v3.19.0 Guest mode merge and caused a blank login / blank app for anyone updating directly from v3.18.0. Server-side <code>/api/ice-servers</code> defaults refreshed to match the v3.20.1 client pool. Right-click &rarr; Copy image now actually copies the image (was silently rejecting due to dropped user-gesture token; rebuilt around Electron IPC for Desktop and a promise-based <code>ClipboardItem</code> for the web). Image and member context menus raised above the lightbox and PiP DM. Password eye-icon no longer overlaps the typed characters.</div>
                 <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.21.0.zip">Download &rarr;</a>
               </div>
               <div class="version-item">

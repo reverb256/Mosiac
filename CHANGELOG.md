@@ -11,6 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.23.0] — 2026-06-03
+
+### Added
+- **Private webhook bot replies (`ephemeral` + `recipient_id`) (#5404).** `POST /api/webhooks/:token` now accepts `ephemeral: true` plus `recipient_id` to deliver a bot message only to one channel member without storing it in chat history. The server validates that the recipient is a member of the webhook's channel before delivery. Clients render these with an "Only visible to you" pill so recipients can distinguish private bot output (for example dashboard login tokens) from normal channel messages.
+
 ## [3.22.0] — 2026-06-01
 
 ### Added

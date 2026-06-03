@@ -770,8 +770,25 @@ Content-Type: application/json
 - `content` (required) — message text, max 4000 characters
 - `username` (optional) — override the bot's display name for this message
 - `avatar_url` (optional) — override the bot's avatar for this message
+- `ephemeral` (optional) — when `true`, deliver only to `recipient_id` and do not store in history
+- `recipient_id` (required when `ephemeral` is `true`) — user id that should receive the private bot message
 
-Response: `{ "success": true, "message_id": 123 }`
+Ephemeral example:
+
+```
+POST https://your-server.com/api/webhooks/<token>
+Content-Type: application/json
+
+{
+  "content": "Your dashboard token: abc123",
+  "ephemeral": true,
+  "recipient_id": 42
+}
+```
+
+Response (regular): `{ "success": true, "message_id": 123 }`
+
+Response (ephemeral): `{ "success": true, "ephemeral": true, "recipient_id": 42, "delivered": true }`
 
 ### Deleting Messages
 
