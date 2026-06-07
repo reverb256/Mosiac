@@ -329,10 +329,12 @@ _renderMessages(messages, lastReadMessageId) {
     if (jumpBtn) jumpBtn.classList.add('visible');
   } else {
     this._scrollToBottom(true);
-    // Re-scroll after images load, but only if user hasn't scrolled away
+    // Re-scroll after images load, but only if user hasn't scrolled away.
+    // Use the debounced variant so multiple images loading in the same batch
+    // don't each fire an individual instant scroll-snap.
     container.querySelectorAll('img').forEach(img => {
       if (!img.complete) img.addEventListener('load', () => {
-        if (this._coupledToBottom) this._scrollToBottom(true);
+        if (this._coupledToBottom) this._debouncedScrollToBottom();
       }, { once: true });
     });
     // Deferred re-scroll: images, link previews, and E2E decryption can add
@@ -617,16 +619,18 @@ _appendMessage(message, forceScroll = false) {
   if (wasAtBottom) {
     this._scrollToBottom(true);
   }
-  // Scroll after images/gifs load, but only if still coupled to bottom
+  // Scroll after images/gifs load, but only if still coupled to bottom.
+  // Use the debounced variant so multiple images loading at different speeds
+  // collapse into one scroll call rather than each firing an instant snap.
   const imgs = msgEl.querySelectorAll('img');
   if (imgs.length) {
     imgs.forEach(img => {
       if (!img.complete) {
         img.addEventListener('load', () => {
-          if (this._coupledToBottom) this._scrollToBottom(true);
+          if (this._coupledToBottom) this._debouncedScrollToBottom();
         }, { once: true });
         img.addEventListener('error', () => {
-          if (this._coupledToBottom) this._scrollToBottom(true);
+          if (this._coupledToBottom) this._debouncedScrollToBottom();
         }, { once: true });
       }
     });

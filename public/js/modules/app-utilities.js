@@ -840,6 +840,17 @@ _scrollToBottom(force) {
   }
 },
 
+// Debounced version used by image/media load handlers. Multiple images in the
+// same batch (e.g. 5 photos loaded from history) all collapse into a single
+// scroll call instead of firing an individual hard-snap per image, which is
+// what causes the "chat jumping around like crazy" symptom.
+_debouncedScrollToBottom() {
+  clearTimeout(this._scrollBottomDebounce);
+  this._scrollBottomDebounce = setTimeout(() => {
+    if (this._coupledToBottom) this._scrollToBottom(true);
+  }, 50);
+},
+
 _showToast(message, type = 'info', action = null, duration = 4000) {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');

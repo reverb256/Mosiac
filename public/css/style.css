@@ -6294,6 +6294,12 @@ select.cfn-select.cfn-input {
 .chat-image {
   max-width: 180px;
   max-height: 180px;
+  /* Reserve minimum space before the image loads so the layout doesn't jump
+     from 0×0 to full-size. Without this, each image load causes a large
+     reflow that the scroll-to-bottom handlers react to individually, making
+     the chat jump repeatedly. */
+  min-width: 60px;
+  min-height: 60px;
   border-radius: var(--radius);
   margin-top: 4px;
   cursor: pointer;
