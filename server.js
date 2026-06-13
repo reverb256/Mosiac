@@ -67,6 +67,8 @@ const { setupSocketHandlers, sanitizeText } = require('./src/socketHandlers');
 const { startTunnel, stopTunnel, getTunnelStatus, registerProcessCleanup } = require('./src/tunnel');
 const { startDdns, getDdnsStatus, triggerDdnsNow } = require('./src/ddns');
 const mosiacRoutes = require('./src/routes-mosiac');
+const profiles = require('./src/profiles');
+const profilesSandbox = require('./src/profiles-sandbox');
 const { initFcm } = require('./src/fcm');
 
 const app = express();
@@ -372,6 +374,296 @@ app.use('/api/auth', authRoutes);
 
 // ── Mosiac Identity routes ───────────────────────────────
 app.use('/mosiac', mosiacRoutes);
+
+// ── Mosiac Profile routes ────────────────────────────────
+//
+// Phase 2: MySpace-style Profiles.
+// GET  /profile/:pubkey  — profile viewer HTML page
+// GET  /api/profile/:pubkey — profile manifest JSON
+// PUT  /api/profile          — save/update own profile (auth + signature required)
+//
+
+/**
+ * Profile viewer page at /profile/:pubkey
+ * Renders a standalone profile page with sandboxed iframe for custom content.
+ */
+app.get('/profile/:pubkey', (req, res) => {
+  const pubkey = req.params.pubkey;
+  if (!pubkey || typeof pubkey !== 'string' || pubkey.length > 256) {
+    return res.status(400).send('Invalid pubkey');
+  }
+
+  const profile = profiles.getProfile(pubkey);
+  const meta = profiles.getProfileMeta(pubkey);
+
+  // Escape values for safe HTML injection
+  const safeDisplayName = escapeHtml(profile?.display_name || 'Unknown User');
+  const safeBio = escapeHtml(profile?.bio || '');
+  const safePubkey = escapeHtml(pubkey);
+  const safeAvatar = escapeHtml(profile?.avatar || '');
+  const safeBackground = escapeHtml(profile?.background || '');
+
+  // Sanitize custom HTML for sandbox
+  const customHTML = profile?.content
+    ? profilesSandbox.sanitizeHTML(profile.content)
+    : '';
+  const customCSS = profile?.css
+    ? profilesSandbox._sanitizeCSS ? profilesSandbox._sanitizeCSS(profile.css) : escapeHtml(profile.css)
+    : '';
+
+  // Widget rendering
+  const widgetsHTML = renderWidgets(profile?.widgets || []);
+
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeDisplayName} — Mosiac Profile</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .profile-page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .profile-header {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      background: var(--bg-secondary, #1e1e2e);
+    }
+    .profile-banner {
+      height: 200px;
+      background: ${safeBackground ? `url('${safeBackground}') center/cover` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+    }
+    .profile-info {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      align-items: flex-start;
+    }
+    .profile-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 4px solid var(--bg-secondary, #1e1e2e);
+      margin-top: -60px;
+      object-fit: cover;
+      background: var(--bg-primary, #1a1a2e);
+    }
+    .profile-details {
+      flex: 1;
+    }
+    .profile-details h1 {
+      margin: 0 0 4px 0;
+      font-size: 1.6rem;
+    }
+    .profile-details .pubkey-display {
+      font-size: 0.75rem;
+      color: var(--text-muted, #888);
+      word-break: break-all;
+      font-family: monospace;
+    }
+    .profile-details .bio {
+      margin-top: 10px;
+      color: var(--text-secondary, #ccc);
+      white-space: pre-wrap;
+    }
+    .profile-content-sandbox {
+      margin-top: 20px;
+    }
+    .profile-content-sandbox iframe {
+      width: 100%;
+      min-height: 400px;
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .profile-widgets {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .profile-widget {
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--bg-secondary, #1e1e2e);
+    }
+    .profile-widget h3 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      color: var(--text-muted, #888);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: var(--accent, #6b4fdb);
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="profile-page">
+    <a href="/" class="back-link">&larr; Back to Home</a>
+    <div class="profile-header">
+      <div class="profile-banner"></div>
+      <div class="profile-info">
+        <img class="profile-avatar" src="${safeAvatar || '/css/default-avatar.svg'}" alt="${safeDisplayName}" onerror="this.src='/css/default-avatar.svg'">
+        <div class="profile-details">
+          <h1>${safeDisplayName}</h1>
+          <div class="pubkey-display">${safePubkey}</div>
+          ${safeBio ? `<div class="bio">${safeBio}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    ${customHTML ? `
+    <div class="profile-content-sandbox">
+      <iframe sandbox="${profilesSandbox.sandboxAttributes()}" srcdoc="${escapeHtml(generateSandboxContent(customHTML, customCSS))}"></iframe>
+    </div>` : ''}
+
+    <div class="profile-widgets">
+      ${widgetsHTML}
+    </div>
+  </div>
+</body>
+</html>`);
+});
+
+/**
+ * API: GET /api/profile/:pubkey — return profile manifest as JSON
+ */
+app.get('/api/profile/:pubkey', (req, res) => {
+  const pubkey = req.params.pubkey;
+  if (!pubkey || typeof pubkey !== 'string' || pubkey.length > 256) {
+    return res.status(400).json({ error: 'Invalid pubkey' });
+  }
+
+  const profile = profiles.getProfile(pubkey);
+  if (!profile) {
+    return res.json({ profile: null });
+  }
+
+  // Return the full manifest (including the canonical pubkey from the stored manifest)
+  res.json({ profile });
+});
+
+/**
+ * API: PUT /api/profile — save/update own profile manifest.
+ * Body: { manifest: { ...profile manifest }, signature: "base64url...", pubkey: "base64url..." }
+ * The manifest must be Ed25519-signed by the identity key.
+ */
+app.put('/api/profile', express.json({ limit: '512kb' }), (req, res) => {
+  try {
+    const { manifest, pubkey } = req.body || {};
+
+    if (!manifest || !pubkey) {
+      return res.status(400).json({ error: 'manifest and pubkey are required' });
+    }
+
+    // Verify the signature on the manifest
+    if (!profiles.verifyProfileManifest(manifest)) {
+      return res.status(400).json({ error: 'Invalid or missing signature. Manifest must be signed by the identity key.' });
+    }
+
+    // Save the profile (signature is stripped internally)
+    const result = profiles.saveProfile(pubkey, manifest);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[profile PUT]', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * API: GET /api/profile — list all profile metadata
+ */
+app.get('/api/profile', (req, res) => {
+  try {
+    const list = profiles.listProfiles();
+    res.json({ profiles: list });
+  } catch (e) {
+    console.error('[profile LIST]', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Helper: escape HTML for safe injection ──────────────
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// ── Helper: generate sandboxed iframe srcdoc content ───
+function generateSandboxContent(html, css) {
+  const styleTag = css ? `<style>${css}</style>` : '';
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+${styleTag}
+</head>
+<body>
+${html}
+</body>
+</html>`;
+}
+
+// ── Helper: render widgets from manifest ────────────────
+function renderWidgets(widgets) {
+  if (!Array.isArray(widgets) || widgets.length === 0) return '';
+
+  return widgets.map((w, i) => {
+    const title = w.title || w.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    switch (w.type) {
+      case 'music_player':
+        return `<div class="profile-widget" data-widget-index="${i}">
+          <h3>${escapeHtml(title)}</h3>
+          ${w.src ? `<audio controls src="${escapeHtml(w.src)}" style="width:100%"></audio>` : '<p>No source configured</p>'}
+        </div>`;
+      case 'about':
+        return `<div class="profile-widget" data-widget-index="${i}">
+          <h3>${escapeHtml(title)}</h3>
+          <div class="widget-about">${escapeHtml(w.text || '')}</div>
+        </div>`;
+      case 'friends':
+        const items = Array.isArray(w.items) ? w.items : [];
+        return `<div class="profile-widget" data-widget-index="${i}">
+          <h3>${escapeHtml(title)}</h3>
+          ${items.length === 0 ? '<p>No friends listed</p>' :
+            `<ul class="widget-friends">
+              ${items.map(f => `<li>${escapeHtml(f.display_name || f.pubkey || 'Unknown')}</li>`).join('')}
+            </ul>`}
+        </div>`;
+      case 'custom_html':
+        return `<div class="profile-widget" data-widget-index="${i}">
+          <h3>${escapeHtml(title)}</h3>
+          <div class="widget-custom">${profilesSandbox.sanitizeHTML(w.html || '')}</div>
+        </div>`;
+      default:
+        return '';
+    }
+  }).join('');
+}
 
 // ── Push notification VAPID public key endpoint ──────────
 app.get('/api/push/vapid-key', (req, res) => {

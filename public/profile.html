@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosiac — Profile Editor</title>
+  <link rel="stylesheet" href="/css/mosiac-identity.css">
+  <style>
+    /* ─── Profile Editor Styles ────────────────────────────── */
+    .profile-editor-container {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .profile-editor-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border-color, #333);
+      margin-bottom: 20px;
+    }
+
+    .editor-tab {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted, #888);
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .editor-tab:hover {
+      color: var(--text-primary, #eee);
+    }
+
+    .editor-tab.active {
+      color: var(--accent, #6b4fdb);
+      border-bottom-color: var(--accent, #6b4fdb);
+    }
+
+    .editor-pane {
+      display: none;
+    }
+
+    .editor-pane.active {
+      display: block;
+    }
+
+    .editor-pane .form-group {
+      margin-bottom: 16px;
+    }
+
+    .editor-pane label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: var(--text-secondary, #aaa);
+    }
+
+    .editor-pane input[type="text"],
+    .editor-pane input[type="url"],
+    .editor-pane textarea,
+    .editor-pane select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color, #333);
+      border-radius: 6px;
+      background: var(--bg-primary, #1a1a2e);
+      color: var(--text-primary, #eee);
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+
+    .editor-pane textarea {
+      min-height: 80px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    .editor-pane textarea.code-area {
+      min-height: 200px;
+      font-size: 0.8rem;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      align-items: center;
+    }
+
+    .profile-status {
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .profile-status.info {
+      color: var(--accent, #6b4fdb);
+    }
+
+    .profile-status.success {
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .profile-status.error {
+      color: #f44336;
+      background: rgba(244, 67, 54, 0.1);
+    }
+
+    .profile-preview-container {
+      margin-top: 24px;
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .profile-preview-container h3 {
+      padding: 12px 16px;
+      margin: 0;
+      background: var(--bg-secondary, #1e1e2e);
+      font-size: 0.9rem;
+      color: var(--text-muted, #888);
+      text-transform: uppercase;
+    }
+
+    .profile-preview-container iframe {
+      width: 100%;
+      min-height: 400px;
+      border: none;
+    }
+
+    /* ─── Widget Editor Styles ────────────────────────────── */
+    .widgets-section {
+      margin-top: 24px;
+      border-top: 1px solid var(--border-color, #333);
+      padding-top: 20px;
+    }
+
+    .widgets-section h3 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+    }
+
+    #profile-widgets-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .widget-editor {
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      padding: 12px 16px;
+      background: var(--bg-secondary, #1e1e2e);
+    }
+
+    .widget-editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .widget-editor-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      color: var(--text-secondary, #aaa);
+    }
+
+    .widget-editor-body input,
+    .widget-editor-body textarea {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color, #333);
+      border-radius: 4px;
+      background: var(--bg-primary, #1a1a2e);
+      color: var(--text-primary, #eee);
+      font-size: 0.85rem;
+      box-sizing: border-box;
+      margin-top: 2px;
+    }
+
+    .widget-editor-body textarea {
+      min-height: 60px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    .widget-remove-btn {
+      background: none;
+      border: none;
+      color: #f44336;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0 4px;
+    }
+
+    .widget-empty-state {
+      color: var(--text-muted, #888);
+      text-align: center;
+      padding: 24px;
+      font-style: italic;
+    }
+
+    .widget-friend-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .widget-friend-row input {
+      flex: 1;
+    }
+
+    .widget-friend-add-btn {
+      background: none;
+      border: 1px dashed var(--border-color, #555);
+      color: var(--accent, #6b4fdb);
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+
+    #widget-add-btn {
+      margin-top: 12px;
+    }
+
+    /* ─── Widget Type Picker Modal ────────────────────────── */
+    .widget-picker-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .widget-picker-modal {
+      background: var(--bg-secondary, #1e1e2e);
+      border: 1px solid var(--border-color, #444);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .widget-picker-modal h3 {
+      margin: 0 0 8px 0;
+    }
+
+    .widget-picker-modal .text-muted {
+      color: var(--text-muted, #888);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    .widget-picker-types {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .widget-type-btn {
+      padding: 12px 16px;
+      background: var(--bg-primary, #1a1a2e);
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      color: var(--text-primary, #eee);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.2s;
+    }
+
+    .widget-type-btn:hover {
+      border-color: var(--accent, #6b4fdb);
+    }
+
+    .widget-type-label {
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">⍟ Mosiac</div>
+    <div class="phase-badge">Phase 2: MySpace Profiles</div>
+    <nav class="topbar-nav">
+      <a href="/identity.html" class="topbar-link">Identity</a>
+      <a href="/profile.html" class="topbar-link active">Profile Editor</a>
+    </nav>
+  </header>
+
+  <main class="profile-editor-container">
+    <!-- Auth Gate -->
+    <div id="auth-gate">
+      <div class="card" style="text-align:center;padding:40px;">
+        <h2>Authentication Required</h2>
+        <p>You need a Mosiac identity to create and edit your profile.</p>
+        <div class="splash-actions" style="margin-top:16px;">
+          <a href="/identity.html" class="btn btn-primary">Go to Identity Page</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Editor (hidden until authenticated) -->
+    <div id="profile-editor" class="hidden">
+      <div class="card">
+        <div class="dash-header">
+          <h2>Edit Your Profile</h2>
+          <div class="identity-badge">
+            <small id="profile-editor-identity" style="color:var(--text-muted,#888);word-break:break-all;font-family:monospace;font-size:0.7rem;"></small>
+          </div>
+        </div>
+
+        <!-- Profile Tabs -->
+        <div class="profile-editor-tabs">
+          <button class="editor-tab active" data-tab="basic">Basic Info</button>
+          <button class="editor-tab" data-tab="custom">Custom HTML/CSS</button>
+          <button class="editor-tab" data-tab="widgets">Widgets</button>
+          <button class="editor-tab" data-tab="preview">Preview</button>
+        </div>
+
+        <!-- Basic Info Pane -->
+        <div id="editor-pane-basic" class="editor-pane active">
+          <div class="form-group">
+            <label for="profile-display-name">Display Name</label>
+            <input type="text" id="profile-display-name" placeholder="Your display name" maxlength="64">
+          </div>
+          <div class="form-group">
+            <label for="profile-bio">Bio</label>
+            <textarea id="profile-bio" rows="3" placeholder="Tell the world about yourself..." maxlength="500"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="profile-avatar">Avatar URL</label>
+            <input type="url" id="profile-avatar" placeholder="https://example.com/avatar.jpg">
+          </div>
+          <div class="form-group">
+            <label for="profile-background">Background Image URL</label>
+            <input type="url" id="profile-background" placeholder="https://example.com/background.jpg">
+          </div>
+          <div class="form-group">
+            <label for="profile-theme">Theme</label>
+            <select id="profile-theme">
+              <option value="mosiac-dark">Mosiac Dark</option>
+              <option value="mosiac-light">Mosiac Light</option>
+              <option value="haven">Haven Default</option>
+              <option value="discord">Discord</option>
+              <option value="matrix">Matrix</option>
+              <option value="nord">Nord</option>
+              <option value="dracula">Dracula</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom HTML/CSS Pane -->
+        <div id="editor-pane-custom" class="editor-pane">
+          <div class="form-group">
+            <label for="profile-custom-html">Custom HTML</label>
+            <p style="font-size:0.75rem;color:var(--text-muted,#888);margin:0 0 8px 0;">
+              Your custom profile HTML. Scripts and dangerous elements will be stripped.
+            </p>
+            <textarea id="profile-custom-html" class="code-area" rows="10" placeholder="<div style=&quot;color: hotpink;&quot;>Welcome to my profile!</div>"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="profile-custom-css">Custom CSS</label>
+            <p style="font-size:0.75rem;color:var(--text-muted,#888);margin:0 0 8px 0;">
+              CSS styles for your custom HTML content.
+            </p>
+            <textarea id="profile-custom-css" class="code-area" rows="6" placeholder="body { background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; }"></textarea>
+          </div>
+        </div>
+
+        <!-- Widgets Pane -->
+        <div id="editor-pane-widgets" class="editor-pane">
+          <p style="font-size:0.85rem;color:var(--text-muted,#888);margin-top:0;">
+            Add widgets to your profile for extra flair — music players, about sections, friend lists, and more.
+          </p>
+          <div id="profile-widgets-editor">
+            <p class="widget-empty-state">No widgets yet. Click "Add Widget" to get started.</p>
+          </div>
+          <button id="widget-add-btn" class="btn btn-secondary">+ Add Widget</button>
+        </div>
+
+        <!-- Preview Pane -->
+        <div id="editor-pane-preview" class="editor-pane">
+          <p style="font-size:0.85rem;color:var(--text-muted,#888);margin-top:0;">
+            Preview how your profile will look. Save first, then preview updates.
+          </p>
+          <div id="profile-preview" class="profile-preview-container">
+            <h3>Profile Preview</h3>
+            <div style="padding:20px;text-align:center;color:var(--text-muted,#888);">
+              Save your profile first, then preview will appear here.
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions & Status -->
+        <div class="editor-actions">
+          <button id="profile-preview-btn" class="btn btn-secondary">Preview</button>
+          <button id="profile-save-btn" class="btn btn-primary">💾 Save Profile</button>
+          <div id="profile-status" class="profile-status"></div>
+        </div>
+      </div>
+
+      <!-- Profile Link -->
+      <div class="card" style="margin-top:16px;">
+        <h3>Your Profile Page</h3>
+        <p style="font-size:0.85rem;color:var(--text-muted,#888);">
+          Once you save your profile, it will be viewable at:
+        </p>
+        <code id="profile-page-link" style="display:block;padding:8px 12px;background:var(--bg-primary,#1a1a2e);border:1px solid var(--border-color,#333);border-radius:6px;word-break:break-all;"></code>
+      </div>
+    </div>
+  </main>
+
+  <!-- Widget Type Picker -->
+  <div id="widget-picker" class="hidden"></div>
+
+  <footer class="footer">
+    <span>Mosiac v0.1.0 — Profile Editor</span>
+  </footer>
+
+  <script type="module" src="/js/modules/app-identity.js"></script>
+  <script type="module" src="/js/modules/app-profile-widgets.js"></script>
+  <script type="module" src="/js/modules/app-profile.js"></script>
+  <script>
+    // ─── Bootstrap: wait for identity then init profile editor ──
+    // The identity module sets window.__mosiacIdentity after auth.
+    // We listen for it and initialize the profile editor.
+    function waitForIdentity() {
+      const token = document.cookie.split('; ')
+        .find(r => r.startsWith('mosiac_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        // Not authenticated — show auth gate
+        document.getElementById('auth-gate').style.display = 'block';
+        document.getElementById('profile-editor').classList.add('hidden');
+        return;
+      }
+
+      // Fetch identity info
+      fetch('/mosiac/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.identityId) {
+          document.getElementById('auth-gate').style.display = 'none';
+          document.getElementById('profile-editor').classList.remove('hidden');
+
+          const identity = {
+            pubkey: data.pubkey,
+            identityId: data.identityId,
+            label: data.label,
+          };
+
+          // Show profile link
+          const link = document.getElementById('profile-page-link');
+          if (link) {
+            link.textContent = `${window.location.origin}/profile/${encodeURIComponent(data.pubkey)}`;
+          }
+
+          // Init profile editor
+          if (window.MosiacProfile) {
+            window.MosiacProfile.initProfileEditor(identity);
+          }
+        }
+      })
+      .catch(() => {
+        // Not authenticated — show auth gate
+        document.getElementById('auth-gate').style.display = 'block';
+        document.getElementById('profile-editor').classList.add('hidden');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', waitForIdentity);
+  </script>
+</body>
+</html>

@@ -209,6 +209,30 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_passkeys_identity ON passkeys(identity_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_pubkey ON sessions(pubkey);
     CREATE INDEX IF NOT EXISTS idx_identities_current ON identities(is_current);
+
+    -- Mosiac: Profile table (MySpace-style profiles, Phase 2)
+    CREATE TABLE IF NOT EXISTS profiles (
+      pubkey       TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL DEFAULT '',
+      manifest     TEXT NOT NULL DEFAULT '{}',
+      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Phase 5: Signed Event Bus — append-only per-pubkey event log
+    CREATE TABLE IF NOT EXISTS event_log (
+      id          TEXT    PRIMARY KEY,   -- SHA-256 hex of canonical event content
+      type        TEXT    NOT NULL,       -- event type string
+      pubkey      TEXT    NOT NULL,       -- author's Ed25519 public key
+      created_at  INTEGER NOT NULL,       -- unix timestamp milliseconds
+      data        TEXT    NOT NULL,       -- JSON-encoded payload
+      signature   TEXT    NOT NULL        -- Base64URL detached Ed25519 signature
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_log_pubkey
+      ON event_log(pubkey, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_event_log_type
+      ON event_log(type, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_event_log_created
+      ON event_log(created_at DESC);
   `);
 
   // ── Safe schema migration for existing databases ──────

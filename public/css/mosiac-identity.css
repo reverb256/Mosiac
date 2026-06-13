@@ -41,6 +41,31 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.topbar-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.topbar-link {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+
+.topbar-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.topbar-link.active {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
 .logo { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px; }
 
 .phase-badge {
