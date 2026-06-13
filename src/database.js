@@ -18,8 +18,8 @@ let db;
 const _stmtCache = new Map();
 const MAX_STMT_CACHE = 500;   // safety cap — shouldn't be hit in practice
 
-function initDatabase() {
-  db = new Database(DB_PATH);
+function initDatabase(dbPath) {
+  db = new Database(dbPath || DB_PATH);
 
   // ── Performance settings (memory-conscious) ────────────
   // These were originally set much higher (64 MB cache, 256 MB mmap) which
@@ -209,6 +209,42 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_passkeys_identity ON passkeys(identity_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_pubkey ON sessions(pubkey);
     CREATE INDEX IF NOT EXISTS idx_identities_current ON identities(is_current);
+
+    -- Phase 4: Connections & Following tables
+    CREATE TABLE IF NOT EXISTS follows (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      follower   TEXT    NOT NULL,
+      followee   TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(follower, followee)
+    );
+    CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower);
+    CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee);
+
+    CREATE TABLE IF NOT EXISTS blocked (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      blocker    TEXT    NOT NULL,
+      blocked    TEXT    NOT NULL,
+      reason     TEXT    DEFAULT '',
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(blocker, blocked)
+    );
+    CREATE INDEX IF NOT EXISTS idx_blocked_blocker ON blocked(blocker);
+    CREATE INDEX IF NOT EXISTS idx_blocked_blocked ON blocked(blocked);
+
+    CREATE TABLE IF NOT EXISTS groups (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner      TEXT    NOT NULL,
+      name       TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS group_members (
+      group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      pubkey     TEXT    NOT NULL,
+      added_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (group_id, pubkey)
+    );
+    CREATE INDEX IF NOT EXISTS idx_group_members_pubkey ON group_members(pubkey);
   `);
 
   // ── Safe schema migration for existing databases ──────
@@ -1134,4 +1170,130 @@ function getIdentityDb() {
   return db;
 }
 
-module.exports = { initDatabase, getDb, getIdentityDb };
+module.exports = { initDatabase, init, close, getDb, getIdentityDb, createIdentity, getIdentity, getIdentityByPubkey, listIdentities, getCurrentIdentity, setCurrentIdentity, savePasskey, getPasskey, listPasskeys, updatePasskeyCounter, deletePasskey, addContact, getContact, listContacts, deleteContact, createSession, getSession, deleteSession };
+
+// ─── Test helpers / Mosiac CRUD wrappers ─────────────────────────────────
+
+/**
+ * Initialize with an optional custom DB path (for testing).
+ * Falls back to DB_PATH (which calls initDatabase) when path is omitted.
+ */
+function init(dbPath) {
+  // Close any existing DB first
+  close();
+  // Clear the prepared-statement cache so reused SQL strings in the
+  // new database don't trigger "no such table" errors.
+  _stmtCache.clear();
+  return initDatabase(dbPath || undefined);
+}
+
+/**
+ * Close the database connection.
+ */
+function close() {
+  if (db) {
+    try { db.close(); } catch {}
+    db = null;
+    _stmtCache.clear();
+  }
+}
+
+// ── Identity CRUD ──────────────────────────────────────────────────────────
+
+function createIdentity({ pubkey, privkey, label }) {
+  const result = getIdentityDb().prepare(`
+    INSERT INTO identities (pubkey, privkey, label, is_current)
+    VALUES (?, ?, ?, (SELECT COUNT(*) = 0 FROM identities))
+  `).run(pubkey, privkey, label || null);
+  return { id: result.lastInsertRowid, pubkey, privkey, label: label || null };
+}
+
+function getIdentity(id) {
+  return getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(id);
+}
+
+function getIdentityByPubkey(pubkey) {
+  return getIdentityDb().prepare('SELECT * FROM identities WHERE pubkey = ?').get(pubkey);
+}
+
+function listIdentities() {
+  return getIdentityDb().prepare('SELECT id, pubkey, label, is_current, created_at FROM identities ORDER BY created_at DESC').all();
+}
+
+function getCurrentIdentity() {
+  return getIdentityDb().prepare('SELECT * FROM identities WHERE is_current = 1').get();
+}
+
+function setCurrentIdentity(id) {
+  const db = getIdentityDb();
+  db.prepare('UPDATE identities SET is_current = 0 WHERE is_current = 1').run();
+  db.prepare('UPDATE identities SET is_current = 1 WHERE id = ?').run(id);
+}
+
+// ── Passkey CRUD ───────────────────────────────────────────────────────────
+
+function savePasskey({ id, identityId, credential, transports, nickname }) {
+  getIdentityDb().prepare(`
+    INSERT INTO passkeys (id, identity_id, credential, transports, nickname)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET credential=excluded.credential, counter=0
+  `).run(id, identityId, JSON.stringify(credential), JSON.stringify(transports || []), nickname || null);
+}
+
+function getPasskey(id) {
+  const row = getIdentityDb().prepare('SELECT * FROM passkeys WHERE id = ?').get(id);
+  if (!row) return null;
+  return { ...row, credential: JSON.parse(row.credential), transports: row.transports ? JSON.parse(row.transports) : [] };
+}
+
+function listPasskeys(identityId) {
+  const rows = getIdentityDb().prepare('SELECT * FROM passkeys WHERE identity_id = ?').all(identityId);
+  return rows.map(r => ({ ...r, credential: JSON.parse(r.credential), transports: r.transports ? JSON.parse(r.transports) : [] }));
+}
+
+function updatePasskeyCounter(id, counter) {
+  getIdentityDb().prepare('UPDATE passkeys SET counter = ? WHERE id = ?').run(counter, id);
+}
+
+function deletePasskey(id) {
+  getIdentityDb().prepare('DELETE FROM passkeys WHERE id = ?').run(id);
+}
+
+// ── Contact CRUD ───────────────────────────────────────────────────────────
+
+function addContact({ pubkey, label, discoveredVia }) {
+  getIdentityDb().prepare(`
+    INSERT INTO contacts (pubkey, label, discovered_via)
+    VALUES (?, ?, ?)
+    ON CONFLICT(pubkey) DO UPDATE SET label=excluded.label, last_seen_at=datetime('now')
+  `).run(pubkey, label || null, discoveredVia || 'qr');
+}
+
+function getContact(pubkey) {
+  return getIdentityDb().prepare('SELECT * FROM contacts WHERE pubkey = ?').get(pubkey) || null;
+}
+
+function listContacts() {
+  return getIdentityDb().prepare('SELECT * FROM contacts ORDER BY first_seen_at DESC').all();
+}
+
+function deleteContact(pubkey) {
+  getIdentityDb().prepare('DELETE FROM contacts WHERE pubkey = ?').run(pubkey);
+}
+
+// ── Session CRUD ───────────────────────────────────────────────────────────
+
+function createSession({ tokenHash, identityId, pubkey, ttlSeconds }) {
+  getIdentityDb().prepare(`
+    INSERT INTO sessions (token_hash, identity_id, pubkey, expires_at)
+    VALUES (?, ?, ?, datetime('now', '+' || ? || ' seconds'))
+  `).run(tokenHash, identityId, pubkey, ttlSeconds);
+}
+
+function getSession(tokenHash) {
+  return getIdentityDb().prepare("SELECT * FROM sessions WHERE token_hash = ? AND expires_at > datetime('now')").get(tokenHash) || null;
+}
+
+function deleteSession(tokenHash) {
+  getIdentityDb().prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+}

@@ -11,7 +11,11 @@ const path = require('path');
 const identity = require('./identity');
 const qr = require('./qr');
 const passkey = require('./passkey');
+const connections = require('./connections');
 const { getIdentityDb } = require('./database');
+
+// Apply session middleware to all routes so requireAuth works
+router.use(passkey.sessionMiddleware);
 
 /* ─── Health ─── */
 router.get('/health', (req, res) => res.json({ ok: true, mosiac: '0.1.0' }));
@@ -134,6 +138,169 @@ router.post('/verify', (req, res) => {
     const valid = identity.verifyJSON(req.body);
     res.json({ valid });
   } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/* ─── Connections (Phase 4) ─── */
+
+// Follow / Unfollow
+
+router.post('/connections/follow', passkey.requireAuth, (req, res) => {
+  try {
+    const { followee } = req.body;
+    if (!followee) return res.status(400).json({ error: 'followee is required' });
+    const result = connections.follow(req.identity.pubkey, followee);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/connections/unfollow', passkey.requireAuth, (req, res) => {
+  try {
+    const { followee } = req.body;
+    if (!followee) return res.status(400).json({ error: 'followee is required' });
+    const result = connections.unfollow(req.identity.pubkey, followee);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/connections/following', passkey.requireAuth, (req, res) => {
+  try {
+    const following = connections.getFollowing(req.identity.pubkey);
+    const counts = {
+      following: following.length,
+      followers: connections.getFollowerCount(req.identity.pubkey),
+    };
+    res.json({ pubkey: req.identity.pubkey, following, counts });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/connections/followers', passkey.requireAuth, (req, res) => {
+  try {
+    const followers = connections.getFollowers(req.identity.pubkey);
+    const counts = {
+      followers: followers.length,
+      following: connections.getFollowingCount(req.identity.pubkey),
+    };
+    res.json({ pubkey: req.identity.pubkey, followers, counts });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/connections/followers/:pubkey', (req, res) => {
+  try {
+    const followers = connections.getFollowers(req.params.pubkey);
+    res.json({ pubkey: req.params.pubkey, followers });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/connections/following/:pubkey', (req, res) => {
+  try {
+    const following = connections.getFollowing(req.params.pubkey);
+    res.json({ pubkey: req.params.pubkey, following });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Check follow relationship
+router.get('/connections/is-following/:followee', passkey.requireAuth, (req, res) => {
+  try {
+    const result = connections.isFollowing(req.identity.pubkey, req.params.followee);
+    res.json({ following: result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Mututal followers
+router.get('/connections/mutuals', passkey.requireAuth, (req, res) => {
+  try {
+    const mutuals = connections.getMutuals(req.identity.pubkey);
+    res.json({ pubkey: req.identity.pubkey, mutuals });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Block / Unblock
+
+router.post('/connections/block', passkey.requireAuth, (req, res) => {
+  try {
+    const { blocked, reason } = req.body;
+    if (!blocked) return res.status(400).json({ error: 'blocked is required' });
+    const result = connections.block(req.identity.pubkey, blocked, reason);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.post('/connections/unblock', passkey.requireAuth, (req, res) => {
+  try {
+    const { blocked } = req.body;
+    if (!blocked) return res.status(400).json({ error: 'blocked is required' });
+    const result = connections.unblock(req.identity.pubkey, blocked);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/connections/blocked', passkey.requireAuth, (req, res) => {
+  try {
+    const blocked = connections.getBlocked(req.identity.pubkey);
+    res.json({ pubkey: req.identity.pubkey, blocked });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Groups
+
+router.post('/connections/groups', passkey.requireAuth, (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const result = connections.createGroup(req.identity.pubkey, name);
+    res.status(201).json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+router.get('/connections/groups', passkey.requireAuth, (req, res) => {
+  try {
+    const groups = connections.listGroups(req.identity.pubkey);
+    res.json({ pubkey: req.identity.pubkey, groups });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/connections/groups/:id', passkey.requireAuth, (req, res) => {
+  try {
+    const result = connections.deleteGroup(Number(req.params.id), req.identity.pubkey);
+    if (!result.deleted) return res.status(404).json({ error: 'Group not found' });
+    res.json(result);
+  } catch (e) {
+    const status = e.message.includes('Not authorized') ? 403 : 400;
+    res.status(status).json({ error: e.message });
+  }
+});
+
+router.post('/connections/groups/:id/add', passkey.requireAuth, (req, res) => {
+  try {
+    const { pubkey } = req.body;
+    if (!pubkey) return res.status(400).json({ error: 'pubkey is required' });
+    const result = connections.addToGroup(Number(req.params.id), pubkey, req.identity.pubkey);
+    res.json(result);
+  } catch (e) {
+    const status = e.message.includes('Not authorized') ? 403 : e.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: e.message });
+  }
+});
+
+router.post('/connections/groups/:id/remove', passkey.requireAuth, (req, res) => {
+  try {
+    const { pubkey } = req.body;
+    if (!pubkey) return res.status(400).json({ error: 'pubkey is required' });
+    const result = connections.removeFromGroup(Number(req.params.id), pubkey, req.identity.pubkey);
+    res.json(result);
+  } catch (e) {
+    const status = e.message.includes('Not authorized') ? 403 : e.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: e.message });
+  }
+});
+
+// Feed
+
+router.get('/connections/feed', passkey.requireAuth, (req, res) => {
+  try {
+    const feedPubkeys = connections.getFeedPubkeys(req.identity.pubkey);
+    res.json({ pubkey: req.identity.pubkey, feed: feedPubkeys });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;
