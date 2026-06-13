@@ -1,3 +1,15 @@
+# ⬡ MOSIAC — Sovereign, Self-Hosted Social Platform
+
+> **Chat + Profiles + Feeds + Federation.** Built on Haven. No domain required. No Big Tech. No KYC.
+
+Mosiac is a fork of [Haven](https://github.com/ancsemi/Haven) (the self-hosted Discord alternative) that adds
+cryptographic identity (Ed25519 + Passkey), customizable MySpace-style profiles, activity feeds, pubkey-based
+connections, and eventual P2P federation — all while preserving Haven's realtime chat, voice, and screenshare.
+
+**Status:** Phase 1 (Identity Layer) in development.
+
+---
+
 # ⬡ HAVEN — Private Chat That Lives On Your Machine
 
 > **Your server. Your rules. No cloud. No accounts with Big Tech. No one reading your messages.**

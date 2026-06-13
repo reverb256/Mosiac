@@ -1,9 +1,9 @@
-# ── Haven Dockerfile ─────────────────────────────────────
+# ── Mosiac Dockerfile ────────────────────────────────────
 # Lightweight Node.js image with SSL cert auto-generation.
 # Data (database, .env, certs, uploads) is stored in /data
 # so it survives container rebuilds.
 #
-# Build:   docker build -t haven .
+# Build:   docker build -t mosiac .
 # Run:     docker compose up -d
 # ─────────────────────────────────────────────────────────
 

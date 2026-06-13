@@ -1,7 +1,7 @@
 {
-  "name": "haven",
-  "version": "3.24.0",
-  "description": "Haven - self-hosted private chat for your server, your rules",
+  "name": "mosiac",
+  "version": "0.1.0",
+  "description": "Mosiac — sovereign, self-hosted social platform. Chat + profiles + feeds. Built on Haven.",
   "license": "AGPL-3.0",
   "main": "server.js",
   "engines": {
