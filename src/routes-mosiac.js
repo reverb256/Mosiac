@@ -136,4 +136,92 @@ router.post('/verify', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+/* ─── Event Bus (Phase 5) ─── */
+const eventLog = require('./event-log');
+
+/**
+ * POST /api/events — Publish a signed event.
+ * Body: { event: { id, type, pubkey, created_at, data, signature } }
+ * Requires authentication. The event must be signed by the authenticated identity.
+ */
+router.post('/events', passkey.requireAuth, (req, res) => {
+  try {
+    const { event } = req.body;
+    if (!event) return res.status(400).json({ error: 'Missing event in body' });
+
+    // Verify the event is signed by the authenticated identity
+    if (event.pubkey !== req.identity.pubkey) {
+      return res.status(403).json({ error: 'Event pubkey does not match authenticated identity' });
+    }
+
+    const result = eventLog.append(event);
+    res.status(result.added ? 201 : 200).json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /api/events/:pubkey — Get events for a pubkey with optional filters.
+ * Query params: limit, offset, types (comma-separated), since (ms timestamp)
+ */
+router.get('/events/:pubkey', (req, res) => {
+  try {
+    const { limit, offset, types, since } = req.query;
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    if (types) options.types = types.split(',').map(t => t.trim()).filter(Boolean);
+    if (since) options.since = parseInt(since, 10);
+
+    const events = eventLog.getEvents(req.params.pubkey, options);
+    const count = events.length;
+    res.json({ events, count });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /api/events/:pubkey/:eventType — Get latest event of a specific type.
+ */
+router.get('/events/:pubkey/latest/:eventType', (req, res) => {
+  try {
+    const event = eventLog.getLatestEvent(req.params.pubkey, req.params.eventType);
+    if (!event) return res.json({ event: null });
+    res.json({ event });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /api/events/feed — Get feed from multiple pubkeys.
+ * Query params: pubkeys (comma-separated), limit, offset, types, since
+ */
+router.get('/events/feed', (req, res) => {
+  try {
+    const { pubkeys, limit, offset, types, since } = req.query;
+    if (!pubkeys) return res.status(400).json({ error: 'Missing pubkeys query param' });
+
+    const pubkeyList = pubkeys.split(',').map(p => p.trim()).filter(Boolean);
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    if (types) options.types = types.split(',').map(t => t.trim()).filter(Boolean);
+    if (since) options.since = parseInt(since, 10);
+
+    const events = eventLog.getFeed(pubkeyList, options);
+    const count = events.length;
+    res.json({ events, count });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * POST /api/events/verify — Verify an event envelope.
+ * Body: { event: { id, type, pubkey, created_at, data, signature } }
+ */
+router.post('/events/verify', (req, res) => {
+  try {
+    const { event } = req.body;
+    if (!event) return res.status(400).json({ error: 'Missing event in body' });
+    const valid = require('./events').verifyEvent(event);
+    res.json({ valid });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;
