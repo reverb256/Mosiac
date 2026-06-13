@@ -2,11 +2,20 @@
 
 > **Chat + Profiles + Feeds + Federation.** Built on Haven. No domain required. No Big Tech. No KYC.
 
+[![GitHub](https://img.shields.io/badge/repo-reverb256/Mosiac-blue)](https://github.com/reverb256/Mosiac)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-green)](LICENSE)
+[![Status](https://img.shields.io/badge/status-Phase%201%20(Identity)-orange)](https://github.com/reverb256/Mosiac/issues/1)
+
 Mosiac is a fork of [Haven](https://github.com/ancsemi/Haven) (the self-hosted Discord alternative) that adds
 cryptographic identity (Ed25519 + Passkey), customizable MySpace-style profiles, activity feeds, pubkey-based
 connections, and eventual P2P federation — all while preserving Haven's realtime chat, voice, and screenshare.
 
-**Status:** Phase 1 (Identity Layer) in development.
+**Status:** [Phase 1 (Identity Layer)](https://github.com/reverb256/Mosiac/issues/1) in development.
+**Issues:** [github.com/reverb256/Mosiac/issues](https://github.com/reverb256/Mosiac/issues)
+
+---
+
+# ⬡ HAVEN — Private Chat That Lives On Your Machine
 
 ---
 
