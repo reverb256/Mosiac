@@ -171,6 +171,44 @@ function initDatabase() {
       ON mutes(user_id, expires_at);
     CREATE INDEX IF NOT EXISTS idx_messages_channel_id
       ON messages(channel_id, id DESC);
+
+    -- Mosiac: Identity tables (added alongside Haven's existing tables)
+    CREATE TABLE IF NOT EXISTS identities (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      pubkey        TEXT    NOT NULL UNIQUE,
+      privkey       TEXT    NOT NULL,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      label         TEXT,
+      is_current    INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS passkeys (
+      id            TEXT    PRIMARY KEY,
+      identity_id   INTEGER NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
+      credential    TEXT    NOT NULL,
+      transports    TEXT,
+      counter       INTEGER NOT NULL DEFAULT 0,
+      nickname      TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      last_used_at  TEXT
+    );
+    CREATE TABLE IF NOT EXISTS contacts (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      pubkey        TEXT    NOT NULL UNIQUE,
+      label         TEXT,
+      discovered_via TEXT   DEFAULT 'qr',
+      first_seen_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      last_seen_at  TEXT
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash    TEXT    PRIMARY KEY,
+      identity_id   INTEGER NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
+      pubkey        TEXT    NOT NULL,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      expires_at    TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_passkeys_identity ON passkeys(identity_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_pubkey ON sessions(pubkey);
+    CREATE INDEX IF NOT EXISTS idx_identities_current ON identities(is_current);
   `);
 
   // ── Safe schema migration for existing databases ──────
@@ -1088,4 +1126,12 @@ function getDb() {
   return db;
 }
 
-module.exports = { initDatabase, getDb };
+/**
+ * Returns the same database handle for Mosiac identity operations.
+ * Identity tables coexist alongside Haven's existing tables.
+ */
+function getIdentityDb() {
+  return db;
+}
+
+module.exports = { initDatabase, getDb, getIdentityDb };
