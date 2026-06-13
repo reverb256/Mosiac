@@ -1119,6 +1119,56 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);
   `);
 
+  // ── Mosiac: Event Log (Phase 5 — signed event bus) ────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS event_log (
+      id            TEXT    PRIMARY KEY,
+      type          TEXT    NOT NULL,
+      pubkey        TEXT    NOT NULL,
+      created_at    INTEGER NOT NULL,
+      data          TEXT    NOT NULL,
+      signature     TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_event_log_type ON event_log(type);
+    CREATE INDEX IF NOT EXISTS idx_event_log_pubkey ON event_log(pubkey);
+    CREATE INDEX IF NOT EXISTS idx_event_log_created ON event_log(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_event_log_pubkey_type ON event_log(pubkey, type);
+  `);
+
+  // ── Mosiac: Feed channel posts (Phase 3 — Feeds & Posts) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feed_posts (
+      event_id      TEXT    NOT NULL REFERENCES event_log(id) ON DELETE CASCADE,
+      channel_code  TEXT    NOT NULL,
+      pinned        INTEGER NOT NULL DEFAULT 0,
+      created_at    INTEGER NOT NULL,
+      PRIMARY KEY (event_id, channel_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_feed_posts_channel ON feed_posts(channel_code, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_feed_posts_pinned ON feed_posts(channel_code, pinned) WHERE pinned = 1;
+  `);
+
+  // ── Mosiac: Feed likes (fast aggregation, denormalized from like events) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feed_likes (
+      post_id   TEXT NOT NULL REFERENCES event_log(id) ON DELETE CASCADE,
+      liker     TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (post_id, liker)
+    );
+  `);
+
+  // ── Mosiac: Feed bookmarks (per-user bookmarking of posts) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feed_bookmarks (
+      event_id      TEXT    NOT NULL REFERENCES event_log(id) ON DELETE CASCADE,
+      user_pubkey   TEXT    NOT NULL,
+      created_at    INTEGER NOT NULL,
+      PRIMARY KEY (event_id, user_pubkey)
+    );
+    CREATE INDEX IF NOT EXISTS idx_feed_bookmarks_user ON feed_bookmarks(user_pubkey, created_at DESC);
+  `);
+
   return db;
 }
 

@@ -224,4 +224,200 @@ router.post('/events/verify', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+/* ─── Feeds & Posts (Phase 3) ─── */
+const feeds = require('./feeds');
+
+/**
+ * POST /mosiac/feed/post — Create a signed post.
+ * Body: { content, tags?, replyTo?, channelCode? }
+ * Requires authentication.
+ */
+router.post('/feed/post', passkey.requireAuth, (req, res) => {
+  try {
+    const { content, tags, replyTo, channelCode } = req.body;
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'Post content is required' });
+    }
+
+    const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(req.identity.identityId);
+    if (!ident) return res.status(404).json({ error: 'Identity not found' });
+
+    const result = feeds.createPost({
+      content: content.trim().slice(0, 5000),
+      tags,
+      replyTo,
+      channelCode,
+    }, ident.privkey, ident.pubkey);
+
+    res.status(result.added ? 201 : 200).json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * POST /mosiac/feed/like — Like or unlike a post (toggle).
+ * Body: { postId }
+ * Requires authentication.
+ */
+router.post('/feed/like', passkey.requireAuth, (req, res) => {
+  try {
+    const { postId } = req.body;
+    if (!postId) return res.status(400).json({ error: 'Missing postId' });
+
+    const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(req.identity.identityId);
+    if (!ident) return res.status(404).json({ error: 'Identity not found' });
+
+    // Verify the post exists
+    const post = feeds.getPost(postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const result = feeds.createLike(postId, post.pubkey, ident.privkey, ident.pubkey);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * POST /mosiac/feed/repost — Repost/share a post.
+ * Body: { postId, content? }
+ * Requires authentication.
+ */
+router.post('/feed/repost', passkey.requireAuth, (req, res) => {
+  try {
+    const { postId, content } = req.body;
+    if (!postId) return res.status(400).json({ error: 'Missing postId' });
+
+    const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(req.identity.identityId);
+    if (!ident) return res.status(404).json({ error: 'Identity not found' });
+
+    const post = feeds.getPost(postId);
+    if (!post) return res.status(404).json({ error: 'Original post not found' });
+
+    const result = feeds.createRepost(postId, post.pubkey, content || '', ident.privkey, ident.pubkey);
+    res.status(result.added ? 201 : 200).json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/timeline — Get timeline from followed pubkeys.
+ * Query: pubkeys (comma-separated), limit, offset, since
+ */
+router.get('/feed/timeline', (req, res) => {
+  try {
+    const { pubkeys, limit, offset, since } = req.query;
+    if (!pubkeys) return res.status(400).json({ error: 'Missing pubkeys query param' });
+
+    const pubkeyList = pubkeys.split(',').map(p => p.trim()).filter(Boolean);
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    if (since) options.since = parseInt(since, 10);
+
+    const posts = feeds.getTimeline(pubkeyList, options);
+    res.json({ posts, count: posts.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/channel/:code — Get feed channel timeline.
+ * Query: limit, offset, since
+ */
+router.get('/feed/channel/:code', (req, res) => {
+  try {
+    const { limit, offset, since } = req.query;
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    if (since) options.since = parseInt(since, 10);
+
+    const posts = feeds.getChannelTimeline(req.params.code, options);
+    res.json({ posts, count: posts.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/post/:id — Get a single post with stats.
+ */
+router.get('/feed/post/:id', (req, res) => {
+  try {
+    const post = feeds.getPost(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    res.json({ post });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/post/:id/stats — Get post engagement stats.
+ */
+router.get('/feed/post/:id/stats', (req, res) => {
+  try {
+    const stats = feeds.getPostStats(req.params.id);
+    res.json(stats);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/post/:id/replies — Get replies to a post.
+ * Query: limit
+ */
+router.get('/feed/post/:id/replies', (req, res) => {
+  try {
+    const { limit } = req.query;
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    const replies = feeds.getReplies(req.params.id, options);
+    res.json({ replies, count: replies.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/liked/:postId/:pubkey — Check if a pubkey liked a post.
+ */
+router.get('/feed/liked/:postId/:pubkey', (req, res) => {
+  try {
+    const liked = feeds.hasLiked(req.params.postId, req.params.pubkey);
+    res.json({ liked });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * POST /mosiac/feed/bookmark — Toggle bookmark on a post.
+ * Body: { eventId }
+ * Requires authentication.
+ */
+router.post('/feed/bookmark', passkey.requireAuth, (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (!eventId) return res.status(400).json({ error: 'Missing eventId' });
+
+    const result = feeds.bookmarkPost(eventId, req.identity.pubkey);
+    res.json(result);
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/bookmarks — Get bookmarked posts.
+ * Query: limit, offset
+ * Requires authentication.
+ */
+router.get('/feed/bookmarks', passkey.requireAuth, (req, res) => {
+  try {
+    const { limit, offset } = req.query;
+    const options = {};
+    if (limit) options.limit = parseInt(limit, 10);
+    if (offset) options.offset = parseInt(offset, 10);
+    const posts = feeds.getBookmarks(req.identity.pubkey, options);
+    res.json({ posts, count: posts.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+/**
+ * GET /mosiac/feed/bookmarked/:eventId — Check if a post is bookmarked by current user.
+ * Requires authentication.
+ */
+router.get('/feed/bookmarked/:eventId', passkey.requireAuth, (req, res) => {
+  try {
+    const bookmarked = feeds.isBookmarked(req.params.eventId, req.identity.pubkey);
+    res.json({ bookmarked });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 module.exports = router;

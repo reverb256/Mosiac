@@ -23,8 +23,8 @@ describe('Events Module (src/events.js)', () => {
       assert.equal(events.EVENT_TYPES.CHANNEL_CREATE, 'channel_create');
     });
 
-    it('should have ALL_EVENT_TYPES contain exactly 7 types', () => {
-      assert.equal(events.ALL_EVENT_TYPES.length, 7);
+    it('should have ALL_EVENT_TYPES contain exactly 9 types', () => {
+      assert.equal(events.ALL_EVENT_TYPES.length, 9);
     });
   });
 

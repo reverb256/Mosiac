@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosiac — Feeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/mosiac-feeds.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">⍟ Mosiac</div>
+    <div class="phase-badge">Phase 3: Feeds & Posts</div>
+    <nav class="topbar-nav">
+      <a href="/identity.html" class="nav-link">Identity</a>
+      <a href="/feed.html" class="nav-link active">Feeds</a>
+    </nav>
+  </header>
+
+  <main id="app">
+    <!-- Splash / Identity check -->
+    <section id="splash" class="view active">
+      <div class="splash-card">
+        <h1>Mosiac Feeds</h1>
+        <p class="subtitle">Broadcast-style signed posts from identities you follow.</p>
+        <div class="splash-actions">
+          <button id="btn-select-identity" class="btn btn-primary">Select Identity</button>
+        </div>
+        <div id="conn-status" class="conn-status">checking connection…</div>
+      </div>
+    </section>
+
+    <!-- Feed Dashboard -->
+    <section id="dashboard" class="view">
+      <div class="feed-layout">
+        <!-- Left sidebar: identity info + controls -->
+        <aside class="feed-sidebar">
+          <div class="card">
+            <h3>Your Identity</h3>
+            <div id="identity-info">
+              <p id="identity-label" class="identity-label">—</p>
+              <code id="identity-pubkey" class="pubkey-small"></code>
+            </div>
+            <div class="identity-actions">
+              <button id="btn-change-identity" class="btn btn-sm btn-ghost">Switch</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Feed Channels</h3>
+            <div id="channel-list" class="channel-list">
+              <p class="text-muted">No channels yet</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Quick Actions</h3>
+            <button id="btn-new-post" class="btn btn-primary btn-block">✏️ New Post</button>
+            <button id="btn-refresh-feed" class="btn btn-secondary btn-block">🔄 Refresh</button>
+          </div>
+
+          <div class="card">
+            <h3>Following</h3>
+            <div id="following-list">
+              <p class="text-muted">No identities followed</p>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main feed timeline -->
+        <section class="feed-main">
+          <!-- Post composer -->
+          <div id="composer" class="composer hidden">
+            <div class="composer-header">
+              <h3>Create Post</h3>
+              <button id="btn-composer-close" class="btn btn-sm btn-ghost">✕</button>
+            </div>
+            <textarea id="composer-content" class="composer-textarea" placeholder="What's on your mind?" maxlength="5000" rows="4"></textarea>
+            <div class="composer-tools">
+              <input id="composer-tags" type="text" class="composer-tags-input" placeholder="tags (comma-separated)" />
+              <select id="composer-channel" class="composer-channel-select">
+                <option value="">— General Feed —</option>
+              </select>
+            </div>
+            <div class="composer-actions">
+              <span id="composer-char-count" class="char-count">0 / 5000</span>
+              <button id="btn-composer-post" class="btn btn-accent">Post</button>
+            </div>
+          </div>
+
+          <!-- Timeline -->
+          <div id="timeline" class="timeline">
+            <div class="timeline-header">
+              <h2>Timeline</h2>
+              <div class="timeline-filters">
+                <button id="btn-filter-all" class="btn btn-sm btn-filter active">All</button>
+                <button id="btn-filter-posts" class="btn btn-sm btn-filter">Posts</button>
+                <button id="btn-filter-bookmarks" class="btn btn-sm btn-filter">Bookmarks</button>
+              </div>
+            </div>
+            <div id="timeline-posts" class="timeline-posts">
+              <p class="text-muted text-center">Select an identity above to load your feed.</p>
+            </div>
+            <div id="timeline-loading" class="timeline-loading hidden">
+              <div class="spinner"></div>
+              <span>Loading posts…</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/modules/app-feeds.js"></script>
+</body>
+</html>

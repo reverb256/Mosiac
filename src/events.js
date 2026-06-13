@@ -20,6 +20,8 @@ const identity = require('./identity');
 const EVENT_TYPES = Object.freeze({
   PROFILE_UPDATE: 'profile_update',
   POST: 'post',
+  LIKE: 'like',
+  REPOST: 'repost',
   FOLLOW: 'follow',
   UNFOLLOW: 'unfollow',
   BLOCK: 'block',
@@ -142,6 +144,27 @@ function post(data, privkey, pubkey) {
 }
 
 /**
+ * Create a like event.
+ */
+function like(data, privkey, pubkey) {
+  return createEvent(EVENT_TYPES.LIKE, {
+    postId: data.postId,
+    postAuthor: data.postAuthor,
+  }, privkey, pubkey);
+}
+
+/**
+ * Create a repost event.
+ */
+function repost(data, privkey, pubkey) {
+  return createEvent(EVENT_TYPES.REPOST, {
+    postId: data.postId,
+    postAuthor: data.postAuthor,
+    content: data.content || '',
+  }, privkey, pubkey);
+}
+
+/**
  * Create a follow event.
  */
 function follow(targetPubkey, privkey, pubkey) {
@@ -207,6 +230,8 @@ module.exports = {
   verifyEvent,
   profileUpdate,
   post,
+  like,
+  repost,
   follow,
   unfollow,
   block,

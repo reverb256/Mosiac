@@ -22,6 +22,7 @@ const registerUsers      = require('./users');
 const registerModeration = require('./moderation');
 const registerRoles      = require('./roles');
 const registerAdmin      = require('./admin');
+const registerFeeds      = require('./feeds');
 
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'admin').toLowerCase();
 
@@ -1472,6 +1473,7 @@ function setupSocketHandlers(io, db, opts = {}) {
     registerModeration(socket, ctx);
     registerRoles(socket, ctx);
     registerAdmin(socket, ctx);
+    registerFeeds(socket, ctx);
 
     // ── Disconnect handler ────────────────────────────────
     socket.on('disconnect', () => {
