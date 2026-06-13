@@ -27,7 +27,7 @@
     "@simplewebauthn/server": "^9.0.0",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
-    "uuid": "^9.0.0",
+    "uuid": "^14.0.0",
     "socket.io": "^4.8.1",
     "web-push": "^3.6.7"
   },
