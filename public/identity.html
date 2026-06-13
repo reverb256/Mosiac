@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosiac — Identity</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">⍟ Mosiac</div>
+    <div class="phase-badge">Phase 1: Identity Layer</div>
+  </header>
+
+  <main id="app">
+    <!-- Splash / Unauthenticated -->
+    <section id="splash" class="view active">
+      <div class="splash-card">
+        <h1>Welcome to Mosiac</h1>
+        <p class="subtitle">A decentralized social platform built on Ed25519 identities.</p>
+        <div class="splash-actions">
+          <button id="btn-register" class="btn btn-primary">Create Identity with Passkey</button>
+          <button id="btn-login" class="btn btn-secondary">Login with Passkey</button>
+        </div>
+        <div class="splash-existing">
+          <p>Already have an identity?</p>
+          <button id="btn-show-existing" class="btn btn-ghost">Show existing identities</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Registration (step 1 + 2) -->
+    <section id="register" class="view">
+      <div class="card">
+        <h2>Create Your Identity</h2>
+        <div id="register-step1">
+          <p>We're generating your Ed25519 key pair and preparing passkey registration.</p>
+          <div class="spinner"></div>
+        </div>
+        <div id="register-step2" class="hidden">
+          <div class="success-icon">✓</div>
+          <h3>Identity Created!</h3>
+          <div class="identity-display">
+            <div class="field">
+              <label>Public Key</label>
+              <code class="pubkey-display" id="reg-pubkey"></code>
+            </div>
+            <div class="field">
+              <label>Fingerprint</label>
+              <code id="reg-fingerprint"></code>
+            </div>
+            <div class="field">
+              <label>URI</label>
+              <code id="reg-uri" class="small"></code>
+            </div>
+          </div>
+          <div id="reg-passkey-section">
+            <p>Now register a passkey to protect this identity.</p>
+            <button id="btn-register-passkey" class="btn btn-primary">Register Passkey</button>
+          </div>
+        </div>
+        <div id="register-complete" class="hidden">
+          <div class="success-icon">✓</div>
+          <h3>Passkey Registered!</h3>
+          <p>Your identity is now secured with a passkey.</p>
+          <button id="btn-reg-go-dashboard" class="btn btn-primary">Go to Dashboard</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Login -->
+    <section id="login" class="view">
+      <div class="card">
+        <h2>Login with Passkey</h2>
+        <p>Use your registered passkey to authenticate.</p>
+        <button id="btn-login-passkey" class="btn btn-primary">Authenticate with Passkey</button>
+        <div id="login-error" class="error hidden"></div>
+      </div>
+    </section>
+
+    <!-- Dashboard (authenticated) -->
+    <section id="dashboard" class="view">
+      <div class="card">
+        <div class="dash-header">
+          <h2>Your Identity</h2>
+          <button id="btn-logout" class="btn btn-ghost">Logout</button>
+        </div>
+        <div class="identity-display">
+          <div class="field">
+            <label>Public Key</label>
+            <code class="pubkey-display" id="dash-pubkey"></code>
+          </div>
+          <div class="field">
+            <label>Fingerprint</label>
+            <code id="dash-fingerprint"></code>
+          </div>
+          <div class="field">
+            <label>Hex</label>
+            <code id="dash-hex" class="small"></code>
+          </div>
+          <div class="field">
+            <label>URI</label>
+            <code id="dash-uri" class="small"></code>
+          </div>
+        </div>
+
+        <div class="qr-section">
+          <h3>Share Your Identity</h3>
+          <div id="qr-container" class="qr-container">
+            <div class="spinner"></div>
+          </div>
+          <p class="hint">Scan this QR code with another Mosiac user to connect.</p>
+        </div>
+
+        <div class="scan-section">
+          <h3>Add a Contact</h3>
+          <div class="input-group">
+            <input type="text" id="scan-input" placeholder="Paste a mosiac:// URI or Base64URL pubkey">
+            <button id="btn-scan" class="btn btn-secondary">Add Contact</button>
+          </div>
+          <div id="scan-result" class="hidden"></div>
+        </div>
+
+        <div class="contacts-section">
+          <h3>Contacts (<span id="contact-count">0</span>)</h3>
+          <div id="contact-list" class="contact-list"></div>
+        </div>
+
+        <div class="sign-section">
+          <h3>Test Signing</h3>
+          <div class="input-group">
+            <input type="text" id="sign-input" value='{"hello":"world"}' placeholder='{"key": "value"}'>
+            <button id="btn-sign" class="btn btn-secondary">Sign</button>
+          </div>
+          <div id="sign-result" class="hidden">
+            <label>Signature</label>
+            <code id="sign-signature" class="small"></code>
+            <button id="btn-verify" class="btn btn-ghost">Verify</button>
+            <div id="verify-result" class="hidden"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Existing identities list -->
+    <section id="existing-identities" class="view">
+      <div class="card">
+        <h2>Existing Identities</h2>
+        <div id="identities-list"></div>
+        <button id="btn-back-splash" class="btn btn-ghost">Back</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Mosiac v0.1.0 — Identity Layer</span>
+    <span class="footer-status" id="conn-status">disconnected</span>
+  </footer>
+
+  <script type="module" src="/js/modules/app-identity.js"></script>
+</body>
+</html>
