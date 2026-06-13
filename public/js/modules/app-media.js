@@ -512,6 +512,11 @@ _setupSoundManagement() {
       const el = document.getElementById(id);
       if (el) el.checked = val;
     });
+    // Close sidebar panel when switching back to popup mode
+    if (!val) {
+      const panel = document.getElementById('sb-sidebar-panel');
+      if (panel) panel.style.display = 'none';
+    }
     this._renderSoundboard(
       this._soundboardPip
         ? (document.getElementById('sb-pip-search')?.value?.trim() || '')
@@ -862,8 +867,8 @@ _renderSoundList(sounds) {
     ${builtins.map(s => `
       <div class="custom-sound-item" data-name="${this._escapeHtml(s.name)}">
         <span class="custom-sound-name">${this._escapeHtml(s.name)}</span>
-        <button class="btn-xs sound-preview-btn" data-url="${this._escapeHtml(s.url)}" title="${t('modals.sound_manager.preview_btn')}">▶</button>
-        <span class="muted-text" style="font-size:0.75em;margin-left:4px" title="${t('modals.sound_manager.builtin_locked_title')}">🔒</span>
+        <button class="btn-xs sound-preview-btn" data-url="${this._escapeHtml(s.url)}" title="${t('modals.sound_manager.preview_btn')}">&#x25B6;</button>
+        <button class="btn-xs sound-delete-btn" data-name="${this._escapeHtml(s.name)}" title="${t('modals.sound_manager.delete_btn')}">&#x1F5D1;</button>
       </div>
     `).join('')}
   `;
@@ -874,8 +879,8 @@ _renderSoundList(sounds) {
       <div class="custom-sound-item" data-name="${this._escapeHtml(s.name)}">
         <span class="custom-sound-name">${this._escapeHtml(s.name)}</span>
         <button class="btn-xs sound-preview-btn" data-url="${this._escapeHtml(s.url)}" title="${t('modals.sound_manager.preview_btn')}">▶</button>
-        <button class="btn-xs sound-rename-btn" data-name="${this._escapeHtml(s.name)}" title="${t('modals.sound_manager.rename_btn')}">âœï¸</button>
-        <button class="btn-xs sound-delete-btn" data-name="${this._escapeHtml(s.name)}" title="${t('modals.sound_manager.delete_btn')}">ðŸ—‘ï¸</button>
+        <button class="btn-xs sound-rename-btn" data-name="${this._escapeHtml(s.name)}" title="${t('modals.sound_manager.rename_btn')}">&#x270F;</button>
+        <button class="btn-xs sound-delete-btn" data-name="${this._escapeHtml(s.name)}" title="${t('modals.sound_manager.delete_btn')}">&#x1F5D1;</button>
       </div>
     `).join('')}
   `;
@@ -1500,7 +1505,7 @@ _renderEmojiList(emojis) {
     <div class="custom-sound-item">
       <img src="${this._escapeHtml(e.url)}" alt=":${this._escapeHtml(e.name)}:" class="custom-emoji-preview" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;">
       <span class="custom-sound-name">:${this._escapeHtml(e.name)}:</span>
-      <button class="btn-xs emoji-delete-btn" data-name="${this._escapeHtml(e.name)}" title="Delete">ðŸ—‘ï¸</button>
+      <button class="btn-xs emoji-delete-btn" data-name="${this._escapeHtml(e.name)}" title="Delete">&#x1F5D1;</button>
     </div>
   `).join('');
 
@@ -1561,7 +1566,7 @@ _renderStickerList(stickers) {
         <div class="custom-sound-item">
           <img src="${this._escapeHtml(s.url)}" alt=":${this._escapeHtml(s.name)}:" style="width:48px;height:48px;vertical-align:middle;margin-right:8px;object-fit:contain;border-radius:4px;background:var(--bg-secondary)">
           <span class="custom-sound-name">:${this._escapeHtml(s.name)}:</span>
-          <button class="btn-xs sticker-delete-btn" data-name="${this._escapeHtml(s.name)}" title="Delete">ðŸ—‘ï¸</button>
+          <button class="btn-xs sticker-delete-btn" data-name="${this._escapeHtml(s.name)}" title="Delete">&#x1F5D1;</button>
         </div>
       `).join('')}
     </div>
@@ -1819,7 +1824,7 @@ _showBotDetail(botId) {
 
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn-sm btn-accent" id="bot-detail-save" style="flex:1">💾 ${t('modals.bot_mgmt.save_btn')}</button>
-        <button class="btn-sm btn-danger" id="bot-detail-delete">ðŸ—‘ï¸ ${t('modals.bot_mgmt.delete_btn')}</button>
+        <button class="btn-sm btn-danger" id="bot-detail-delete">&#x1F5D1; ${t('modals.bot_mgmt.delete_btn')}</button>
       </div>
     </div>
   `;

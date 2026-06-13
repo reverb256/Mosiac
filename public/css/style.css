@@ -4953,7 +4953,8 @@ select.cfn-select.cfn-input {
 .sidebar-collapse-btn {
   position: fixed;
   right: 0;
-  top: 56px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 20px;
   height: 36px;
   display: flex;
@@ -11905,7 +11906,8 @@ video:-webkit-full-screen {
   flex-shrink: 0;
 }
 .sb-sidebar-collapse-btn:hover { color: var(--text-primary); }
-/* Collapsed state — hide the body, flip the arrow */
+/* Collapsed state — shrink to header only, flip the arrow */
+.sb-sidebar-panel.sb-collapsed { bottom: auto; }
 .sb-sidebar-panel.sb-collapsed .sb-sidebar-body { display: none; }
 .sb-sidebar-panel.sb-collapsed .sb-sidebar-collapse-btn { transform: rotate(180deg); }
 .sb-sidebar-body {

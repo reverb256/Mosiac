@@ -1368,9 +1368,12 @@ app.get('/api/sounds', (req, res) => {
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { getDb } = require('./src/database');
   try {
+    const disabledRows = getDb().prepare('SELECT name FROM disabled_builtin_sounds').all();
+    const disabledSet = new Set(disabledRows.map(r => r.name));
+    const enabledBuiltins = BUILTIN_SOUNDS.filter(s => !disabledSet.has(s.name));
     const custom = getDb().prepare('SELECT name, filename FROM custom_sounds ORDER BY name').all();
     const customList = custom.map(s => ({ name: s.name, url: `/uploads/${s.filename}` }));
-    res.json({ sounds: [...BUILTIN_SOUNDS, ...customList] });
+    res.json({ sounds: [...enabledBuiltins, ...customList] });
   } catch { res.json({ sounds: [...BUILTIN_SOUNDS] }); }
 });
 
@@ -1379,10 +1382,14 @@ app.delete('/api/sounds/:name', (req, res) => {
   const user = token ? verifyToken(token) : null;
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   if (!verifyAdminFromDb(user) && !userHasPermission(user.id, 'manage_soundboard')) return res.status(403).json({ error: 'Requires admin or Manage Soundboard permission' });
-  if (BUILTIN_SOUNDS.some(s => s.name === req.params.name)) return res.status(403).json({ error: 'Cannot delete built-in sounds' });
   const name = req.params.name;
   const { getDb } = require('./src/database');
   try {
+    // Built-in sounds are disabled by adding them to a blocklist (they can't be physically deleted)
+    if (BUILTIN_SOUNDS.some(s => s.name === name)) {
+      getDb().prepare('INSERT OR IGNORE INTO disabled_builtin_sounds (name) VALUES (?)').run(name);
+      return res.json({ ok: true });
+    }
     const row = getDb().prepare('SELECT filename FROM custom_sounds WHERE name = ?').get(name);
     if (row) {
       try { fs.unlinkSync(path.join(uploadDir, row.filename)); } catch {}

@@ -398,6 +398,13 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_sound_prefs_user ON sound_preferences(user_id);
   `);
 
+  // ── Migration: disabled_builtin_sounds (admin-hidden built-in sounds) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS disabled_builtin_sounds (
+      name TEXT PRIMARY KEY NOT NULL
+    );
+  `);
+
   // ── Migration: custom_emojis table (admin-uploaded server emojis) ──
   db.exec(`
     CREATE TABLE IF NOT EXISTS custom_emojis (
