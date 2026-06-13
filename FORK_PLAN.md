@@ -286,9 +286,24 @@ Mosiac will ship as:
 
 - [x] Repo cloned and rebranded to Mosiac (package.json, Dockerfile, paths.js)
 - [x] `mosiac` branch created
-- [ ] Phase 1: Identity layer
+- [x] Phase 1: Identity layer — Ed25519 keys, Passkeys, QR, signing
+- [x] `reverb256/mosiac-identity` — standalone sidecar (multi-platform OCI + Nix + direct)
+- [x] sql.js WASM fallback for exotic platforms (Termux, Wii Linux, etc.)
 - [ ] Phase 2: Profiles
 - [ ] Phase 3: Feeds & posts
 - [ ] Phase 4: Connections & following
 - [ ] Phase 5: Signed event bus
 - [ ] Phase 6: Federation
+
+### Multi-Platform Targets
+
+| Platform | Method | Status |
+|----------|--------|--------|
+| Linux (x86_64, aarch64) | npm install, OCI, Nix | ✓ |
+| macOS (Intel, Apple Silicon) | npm install, OCI | ✓ |
+| Docker/Podman (amd64, arm64, arm/v7) | OCI multi-arch | ✓ |
+| NixOS | buildNpmPackage | ✓ |
+| Termux (Android) | npm start (sql.js fallback) | ✓ documented |
+| Raspberry Pi (arm64) | npm install, OCI | ✓ |
+| Windows (WSL, Git Bash) | npm install, OCI | ✓ |
+| Nintendo Wii Linux | npm start (sql.js, zero native deps) | ✓ in principle |
