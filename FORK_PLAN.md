@@ -377,6 +377,165 @@ Modularity means each feature *can* run independently. Composability means they 
 
 ### The Composability Model
 
+User's Mosiac Frontend connects to:
+- Identity from self-hosted Raspberry Pi (mosiac-identity)
+- Chat from friend's Haven server
+- Profiles from self-hosted alongside identity
+- Feeds from a community hub
+- Music from a different friend's Haven
+- Media from IPFS (distributed, no server)
+
+Each feature resolves to a different backend. The frontend discovers which backend serves which feature through a capabilities endpoint.
+
+### The Capabilities Endpoint
+
+Every Mosiac module exposes GET /capabilities returning:
+```json
+{
+  "features": ["identity", "profiles", "feeds", "chat", "music"],
+  "identity": { "pubkey": "ed25519:...", "auth_methods": ["passkey"] },
+  "chat": { "type": "haven", "version": "3.24.0" },
+  "feeds": { "max_post_length": 5000 }
+}
+```
+
+The frontend discovers available features at boot by probing each configured backend URL.
+
+### Auth Across Backends
+
+1. User authenticates to their own identity server (Passkey → JWT)
+2. JWT is presented to external services (chat, feeds, music)
+3. External services validate the JWT signature using the user's pubkey
+4. No shared database needed — trust is cryptographic
+
+### Implementation Rule
+
+No Mosiac module may assume it is the only backend. Every API call must be made against a configurable base URL. The frontend must never assume all features share an origin.
+
+---
+
+## Discoverability: How to Find People Without a Directory
+
+The MySpace-style profile page is useless if no one can find it. In a decentralized, domain-free system, there is no central search, no directory, no "username squatting" protection. Discoverability must be solved at multiple layers, each with different trust/effort tradeoffs.
+
+### Layer 1: Direct Address (The QR Business Card)
+
+The baseline. Every user has a QR code encoding `{pubkey, node_url}`.
+
+```
+pubkey: ed25519:a3f8c91e...
+node_url: http://10.1.1.50:3000
+```
+
+You scan someone's QR → you get their pubkey + address → you can fetch their profile at `/profile/:pubkey`. This is the handshake. Everything else builds on it.
+
+### Layer 2: Connection Graph (Friend-of-Friend Browsing)
+
+If Alice follows Bob, and Bob follows Carol, Alice can discover Carol through Bob's connection list:
+
+```
+Alice's Profile
+  └─ "Connections" tab
+       ├─ Following: Bob (pubkey, node_url)
+       └─ Followers: (none yet)
+
+Bob's Profile (fetched from Bob's node)
+  └─ "Connections" tab
+       ├─ Following: Alice, Carol, Dave
+       └─ Followers: Alice
+```
+
+Alice clicks "Carol" → fetches Carol's profile from Carol's node. This is the social graph as discovery mechanism — exactly how MySpace worked, but distributed.
+
+**Privacy control**: Users can mark their connection list as private (only followers see it) or public (anyone can browse).
+
+### Layer 3: Gossip Propagation (Passive Discovery)
+
+As the federation layer (Phase 6) gossips signed event logs between nodes, profile metadata propagates organically:
+
+- When Alice follows Bob, a `follow` event is signed and appended to Alice's event log
+- Bob's node receives the event (because they're connected)
+- Bob's node learns Alice's node address from the event signature
+- Bob's node can now fetch Alice's profile
+- Over time, nodes accumulate a "known peers" list from gossip
+
+This means: **just by using the network, you learn about other nodes**. You don't need to actively search.
+
+### Layer 4: LAN/mDNS (Zero-Config Local Discovery)
+
+On a local network, Mosiac nodes broadcast their existence via mDNS/Bonjour:
+
+```
+mosiac._tcp.local.  →  "ed25519:a3f8c91e...@10.1.1.50:3000"
+```
+
+Any Mosiac node on the LAN automatically discovers all others. A "People Nearby" tab in the UI shows the list. This is zero-config, works on any LAN, and requires no infrastructure.
+
+### Layer 5: DHT (Global Discovery, No Server)
+
+A Kademlia-style distributed hash table maps `pubkey → {node_url, last_seen}`. Nodes participate in the DHT when they have resources to spare. Lookups resolve in logarithmic time relative to network size.
+
+```
+Client → DHT.lookup(pubkey) → node_url → fetch profile
+          DHT.store(pubkey, node_url) → others can find you
+```
+
+The DHT is entirely P2P — no servers, no directories. Implemented via libp2p or a lightweight Kademlia module.
+
+### Layer 6: Optional Directory Nodes (Delegated Discoverability)
+
+Some users may choose to run a **profile index** — a node that crawls profiles and provides search:
+
+```http
+GET https://index.mosiac.lan/search?q=username
+→ [{ pubkey, display_name, node_url, avatar }]
+```
+
+Directory nodes are optional, user-configurable, and swappable. You can:
+- Run your own (for your community)
+- Use a friend's (trust-based)
+- Use a public one (convenience, less private)
+- Use none (pure P2P discovery only)
+
+### The Discovery Decision Tree
+
+```
+I have someone's QR code?
+  → Fetch profile from their node_url (Layer 1)
+
+I know someone who knows them?
+  → Browse their connection list (Layer 2)
+
+I've been using the network for a while?
+  → Check my gossip peer list (Layer 3)
+
+We're on the same LAN?
+  → Check mDNS (Layer 4)
+
+I know their pubkey but nothing else?
+  → DHT lookup (Layer 5)
+
+I want to search by name/keyword?
+  → Query configured directory node (Layer 6)
+
+Nothing works?
+  → Network unreachable or node offline
+  → Profile may be cached from last contact
+```
+
+### Implementation Priority
+
+| Layer | Effort | Impact | Phase |
+|-------|--------|--------|-------|
+| 1. QR + direct address | Already done | High — baseline | Done |
+| 2. Connection graph | Medium | High — viral growth | Phase 4 |
+| 3. Gossip propagation | Medium | Medium — passive | Phase 6 |
+| 4. LAN/mDNS | Low | Medium — local networks | Phase 6 |
+| 5. DHT | High | Low — large network needed | Post-v1 |
+| 6. Directory nodes | Medium | High — searchability | Post-v1 |
+
+### The Composability Model
+
 ```
 User's Mosiac Frontend
 │
