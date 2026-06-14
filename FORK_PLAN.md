@@ -12,19 +12,18 @@ foundation. No domain required. No KYC. No Big Tech.
 
 ```
 ┌─────────────────────────────────────────┐
-│  Mosiac (new layers)                     │
-│  ├─ Identity (Ed25519 + Passkey + QR)    │
-│  ├─ Profiles (sandboxed HTML/CSS/JS)     │
-│  ├─ Feeds / Bulletins                    │
-│  ├─ Connections / Following              │
-│  └─ Signed Event Bus                     │
+│  Mosiac Core (always runs)              │
+│  ├─ Identity (Ed25519 + Passkey + QR)   │
+│  ├─ Profiles (optional external)        │
+│  ├─ Feeds / Bulletins (optional)        │
+│  ├─ Connections (optional)              │
+│  └─ Signed Event Bus (optional)         │
 ├─────────────────────────────────────────┤
-│  Haven (existing, minimally modified)     │
-│  ├─ Chat / Voice / Screenshare           │
-│  ├─ Channels / Roles / Permissions        │
-│  ├─ E2EE DMs / Music / File Share        │
-│  ├─ Auth (bcrypt+JWT, co-exists)         │
-│  └─ SQLite / Express / Socket.IO         │
+│  Mosiac Plugins (modular, swappable)    │
+│  ├─ Chat/Discord (Haven, external)      │ ← can skip or delegate
+│  ├─ Voice/Video (Haven WebRTC)          │
+│  ├─ Music (Haven music system)          │
+│  └─ Federation (P2P gossip)            │
 └─────────────────────────────────────────┘
 ```
 
@@ -33,6 +32,7 @@ foundation. No domain required. No KYC. No Big Tech.
 - No domain required — discovery via QR, IP, onion addresses
 - All new features are additive; Haven code is modified as little as possible
 - Client-side plugin system (`plugins/`) extended for profile rendering
+- **Every feature is a module: optional, skippable, delegatable**
 
 ---
 
@@ -320,6 +320,54 @@ CREATE TABLE sessions (...);
 - A fresh install of upstream Haven works identically with or without Mosiac code
 - Users who only want chat see no difference
 - Users who discover `/identity.html` get the Mosiac layer
+
+---
+
+## Modularity Principle: Every Feature Is Optional, Skippable, Delegatable
+
+Every Mosiac feature is a **module**. You can run it, skip it, self-host it, or delegate it to someone else's server. The system degrades gracefully when a module is absent.
+
+### The Module Contract
+
+Each module:
+1. Has a **standalone entry point** (e.g. `node server.js` for identity)
+2. Has **zero runtime dependencies** on other Mosiac modules
+3. Can **point to an external service** instead of running its own
+4. When unavailable, the **frontend hides or degrades** the feature
+
+### Concrete Examples
+
+| Module | Run It | Skip It | Delegate It |
+|--------|--------|---------|-------------|
+| **Identity** | `docker run reverb256/mosiac-identity` | — (core) | Not delegatable |
+| **Chat** | Run Haven locally | Remove chat tab from UI | Point to `https://friend.haven.lan` |
+| **Profiles** | `node src/profiles.js` | Profile tab hidden | Use external profile service |
+| **Feeds** | `node src/feeds.js` | Feed tab hidden | Use external feed service |
+| **Music** | Run Haven's music bot | Music widget hidden | Use external streaming |
+| **Federation** | `node src/gossip.js` | No P2P (REST only) | Relay through public gateway |
+
+### Implementation Pattern
+
+```javascript
+// In the frontend, each module checks if its backend is available:
+const features = {
+  chat:     await checkEndpoint('/api/auth/me'),
+  identity: await checkEndpoint('/mosiac/identity'),
+  feeds:    await checkEndpoint('/mosiac/feed/posts'),
+  music:    await checkEndpoint('/api/music/status'),
+};
+
+// Features not available are hidden from the UI
+if (!features.chat)  document.getElementById('chat-tab').style.display = 'none';
+if (!features.feeds) document.getElementById('feed-tab').style.display = 'none';
+```
+
+### What This Enables
+
+- **Chat-only users**: Run just Haven. No Mosiac code needed.
+- **Identity-only users**: Run `mosiac-identity` container. No chat server. Use Mosiac for profiles/feeds/auth, link to a friend's Haven for chat.
+- **Experienced users**: Self-host everything. Maximum sovereignty.
+- **Resource-constrained users**: Delegate chat/music/federation to trusted peers. Run only identity locally.
 
 ---
 
