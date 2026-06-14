@@ -371,6 +371,94 @@ if (!features.feeds) document.getElementById('feed-tab').style.display = 'none';
 
 ---
 
+## Composability Principle: Mix and Match Features from Any Servers
+
+Modularity means each feature *can* run independently. Composability means they *do* — a user's Mosiac node pulls features from multiple backends simultaneously, and the system treats this as the normal case, not an edge case.
+
+### The Composability Model
+
+```
+User's Mosiac Frontend
+│
+├─ Identity  ← self-hosted on Raspberry Pi (mosiac-identity)
+├─ Chat      ← friend's Haven server (haven.lan)
+├─ Profiles  ← self-hosted alongside identity
+├─ Feeds     ← community hub (feeds.mosiac.lan)
+├─ Music     ← different friend's Haven (music.haven.lan)
+└─ Media     ← IPFS (distributed, no server)
+```
+
+Each feature resolves to a different backend. The frontend discovers which backend serves which feature through a **capabilities endpoint**.
+
+### The Capabilities Endpoint
+
+Every Mosiac module exposes:
+
+```http
+GET /capabilities
+→ {
+  "features": ["identity", "profiles", "feeds", "chat", "music"],
+  "identity": { "pubkey": "ed25519:...", "auth_methods": ["passkey", "jwt"] },
+  "chat": { "type": "haven", "version": "3.24.0" },
+  "feeds": { "max_post_length": 5000, "supports_sockets": true }
+}
+```
+
+The frontend discovers available features at boot:
+
+```javascript
+const backends = {
+  identity: 'http://my-pi:3002',
+  chat:     'https://friend.haven.lan',
+  feeds:    'http://community-hub:3003',
+  music:    'https://music.haven.lan',
+};
+
+async function discover() {
+  const available = {};
+  for (const [feature, url] of Object.entries(backends)) {
+    try {
+      const res = await fetch(`${url}/capabilities`);
+      if (res.ok) available[feature] = await res.json();
+    } catch { /* service unavailable, degrade gracefully */ }
+  }
+  return available;
+}
+```
+
+### Auth Across Backends
+
+Since identity is self-hosted but chat may be on a friend's server, auth tokens must be portable:
+
+1. User authenticates to **their own identity server** (Passkey → JWT)
+2. JWT is presented to **external services** (chat, feeds, music)
+3. External services validate the JWT signature using the user's pubkey
+4. No shared database needed — trust is cryptographic
+
+```
+User → Identity Server (Passkey login)
+  → JWT signed with user's Ed25519 keypair
+  → JWT presented to Friend's Haven Server
+  → Friend's server verifies signature against pubkey (stored or fetched)
+  → Access granted (guest role or mapped to local user)
+```
+
+### What Composability Enables That Modularity Alone Doesn't
+
+| Scenario | Modularity | + Composability |
+|----------|-----------|----------------|
+| I want chat but not to host it | Skip chat module | Point chat to friend's server |
+| I want to try different profile hosts | Skip profiles module | Swap profile backend URL |
+| I want to aggregate feeds from multiple communities | Run feeds module | Pull from multiple feed servers |
+| My friend runs better music infrastructure | Skip music module | Point music to friend's server |
+| I want to migrate my social graph to a new server | — | Change backend URLs, keep identity key |
+
+### Implementation Rule
+
+**No Mosiac module may assume it is the only backend.** Every API call must be made against a configurable base URL, not a hardcoded path. The frontend must never assume all features share an origin.
+
+---
+
 ## Deployment Philosophy: Domain-Free by Default
 
 Mosiac must **never require** a domain name. It is designed to work on bare IP addresses, LAN hostnames, Tor onion addresses, or Tailscale IPs — whatever the user has. This is a hard architectural constraint, not a preference.
