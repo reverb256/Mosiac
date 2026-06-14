@@ -534,6 +534,78 @@ Nothing works?
 | 5. DHT | High | Low — large network needed | Post-v1 |
 | 6. Directory nodes | Medium | High — searchability | Post-v1 |
 
+---
+
+## Neocities Integration: Bridge to the Static Web
+
+[Neocities](https://neocities.org) is a modern GeoCities revival — free static site hosting with 1GB storage, CLI tools, a REST API, and an open-source backend ([github.com/neocities/neocities](https://github.com/neocities/neocities), 1.8k stars, MIT). It serves the exact same spirit as Mosiac: user-owned, creative, expressive personal web pages. Integrating with Neocities bridges Mosiac's decentralized identity layer with the browsable, crawlable static web.
+
+### Webrings: The Original Social Graph
+
+Webrings are circular chains of related sites. Each site links to "previous" and "next" in the ring, and a central "ringmaster" page lists all members. They were the original decentralized discovery mechanism — no central search needed, just trust-based linking.
+
+Mosiac's connection graph maps directly to webrings:
+
+```
+Webring:         prev ← [Your Profile] → next
+Mosiac Follows:  follower ← [Your Profile] → following
+```
+
+A Mosiac node implements:
+
+```http
+GET /webring/prev   → the previous person in your follow graph
+GET /webring/next   → the next person
+GET /webring/random → a random person from your extended network
+```
+
+Any Mosiac profile automatically becomes part of the webring ecosystem. A Neocities user can link to `mosiac.lan/webring/next` and get a live, always-up-to-date trail through their social graph.
+
+### Integration Points
+
+| Feature | What It Does | How |
+|---------|-------------|-----|
+| **Profile Publishing** | Mosiac profile manifest auto-deploys as static HTML to Neocities | POST to `/api/upload` on profile save. Viewers see `you.neocities.org` without a Mosiac node |
+| **Webring Bridge** | Mosiac connection graph feeds into Neocities webrings | `GET /webring/*` routes. Neocities site embeds webring nav iframe pointing to your Mosiac node |
+| **Media Hosting** | Profile assets optionally served from Neocities | Upload avatars, backgrounds, music to Neocities via API. Link from profile manifest |
+| **Discovery Relay** | Neocities tags/browse feed into Mosiac directory | Mosiac directory node crawls Neocities tags matching `mosiac` → discovers new profiles |
+| **Cross-Posting** | Feed posts auto-publish as static page on Neocities | Blog-style archive of your public posts at `you.neocities.org/blog/` |
+| **Two-Way Linking** | Neocities profiles link back to Mosiac identity | `mosiac://<pubkey>` link on your Neocities page. QR code in your site's sidebar |
+
+### The Capabilities Endpoint
+
+A Neocities-connected Mosiac module exposes:
+
+```http
+GET /capabilities
+→ {
+  "features": ["identity", "profiles", "neocities"],
+  "neocities": {
+    "site": "myuser",
+    "profile_url": "https://myuser.neocities.org",
+    "webring": { "prev": "...", "next": "..." }
+  }
+}
+```
+
+### What This Enables
+
+| | Without Neocities | With Neocities |
+|--|------------------|----------------|
+| **Viewing a profile** | Need a Mosiac node or QR scan | Visit `you.neocities.org` in any browser |
+| **Discovering people** | QR exchange, friend-of-friend | Neocities browse, tags, search engines |
+| **Your profile's reach** | Your Mosiac node only | The open web — indexed, crawled, linked |
+| **Webring navigation** | Connection graph traversal | Standard webring nav — works everywhere |
+| **Media storage** | Self-hosted disk or IPFS | Neocities free tier (1GB, 200GB bandwidth) |
+
+### Implementation
+
+Neocities integration is a Mosiac module that follows the Modularity and Composability principles:
+
+- **Optional**: Only turns on if the user configures `MOSIAC_NEOCITIES_USER` and `MOSIAC_NEOCITIES_PASS`
+- **Delegatable**: User can publish to Neocities or skip it entirely
+- **Graceful degradation**: Without Neocities, everything still works — profile served from local node
+
 ### The Composability Model
 
 ```
