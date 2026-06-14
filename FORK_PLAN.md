@@ -608,6 +608,96 @@ Neocities integration is a Mosiac module that follows the Modularity and Composa
 
 ---
 
+## Matrix Bridge Strategy: Connect Haven to Everything via mautrix
+
+Matrix has the most mature bridge ecosystem in the self-hosted world. The [mautrix project](https://github.com/mautrix) provides production-ready bridges (AGPL-3.0, Go) connecting Matrix to WhatsApp, Telegram, Discord, Signal, IRC, Slack, Bluesky, Instagram, Google Messages, and 10+ more platforms. Building a `mautrix-haven` bridge unlocks all of these networks for Haven users.
+
+### Architecture
+
+```
+Matrix User                                   Haven User
+    │                                              │
+    ├── mautrix-whatsapp ──→ WhatsApp              │
+    ├── mautrix-telegram ──→ Telegram              │
+    ├── mautrix-discord  ──→ Discord               │
+    ├── mautrix-signal   ──→ Signal                │
+    │                                              │
+    └── mautrix-haven ──────────→ Haven channel ───┤
+                   ←───────── Socket.IO events ────┘
+
+Every bridged platform can reach every Haven channel.
+Every Haven user can reach every bridged platform.
+```
+
+### How mautrix Bridges Work
+
+Each mautrix bridge is a Go application that registers as a Matrix application service. It:
+
+1. Connects to the remote platform (e.g. Discord via discordgo)
+2. Connects to the Matrix homeserver via the appservice API
+3. Maps remote channels ↔ Matrix rooms
+4. Maps remote users ↔ Matrix puppets
+5. Translates messages, reactions, files, and events between protocols
+
+The [bridgev2 framework](https://github.com/mautrix/bridgev2) handles all Matrix protocol complexity. Bridge authors only implement the remote platform client, portal mapping, and message conversion.
+
+### mautrix-haven Bridge Spec
+
+See GitHub issue #21 for the full spec. Key points:
+
+| Component | Implementation |
+|-----------|---------------|
+| Protocol | Haven REST API (outgoing) + Socket.IO (incoming) |
+| Auth | Haven JWT token for bridge bot user |
+| Portal | 1:1 Haven channel code ↔ Matrix room alias |
+| Puppet | 1:1 Haven user ID ↔ Matrix user |
+| Messages | Send via REST, receive via Socket.IO events |
+| Files | Download from Haven uploads, upload to Matrix media |
+| Double-puppeting | Matrix user can link their Haven account |
+
+### The Deployment Stack
+
+To reach every platform from Haven:
+
+```bash
+# 1. Run Matrix homeserver (lightweight Conduit or Synapse)
+docker run -d --name conduit matrix-conduit
+
+# 2. Run mautrix bridges for desired platforms
+docker run -d --name mautrix-discord  mautrix/discord
+docker run -d --name mautrix-whatsapp mautrix/whatsapp
+docker run -d --name mautrix-signal   mautrix/signal
+
+# 3. Run mautrix-haven bridge (once built)
+docker run -d --name mautrix-haven reverb256/mautrix-haven
+
+# 4. Access everything from Element or any Matrix client
+# No need to open Haven's UI for bridged conversations
+```
+
+### What This Enables
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| Reach WhatsApp contacts | Not possible | Via mautrix-whatsapp → mautrix-haven |
+| Join IRC channels | Not possible | Via mautrix-irc → mautrix-haven |
+| Cross-platform group chat | Not possible | All platforms bridged into one Matrix room |
+| Use any Matrix client | Not possible | Element, FluffyChat, SchildiChat, etc. |
+| Federation with other servers | Not possible | Matrix federation — talk to any Matrix server |
+
+### Complexity & Timeline
+
+| Phase | Scope | Effort |
+|-------|-------|--------|
+| v1 | Bidirectional text, basic channel/room mapping | 1 week |
+| v2 | Reactions, edits, deletes, files | +1 week |
+| v3 | Double-puppeting, backfill, presence | +1 week |
+| v4 | Voice/video (Haven WebRTC ↔ Matrix VoIP) | Complex — post-v1 |
+
+See GitHub issue #21 for the detailed implementation plan.
+
+---
+
 ## Modular Runtime: FEATURES and CHAT_SERVER_URL
 
 Two env vars make the modular/Composability principles operational at the deployment level.
