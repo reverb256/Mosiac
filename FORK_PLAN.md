@@ -282,6 +282,51 @@ Mosiac will ship as:
 
 ---
 
+## Deployment Philosophy: Domain-Free by Default
+
+Mosiac must **never require** a domain name. It is designed to work on bare IP addresses, LAN hostnames, Tor onion addresses, or Tailscale IPs — whatever the user has. This is a hard architectural constraint, not a preference.
+
+### The Stack
+
+| Layer | Mechanism | Domain Required? |
+|-------|-----------|------------------|
+| **Identity** | `mosiac://<pubkey>` URI scheme | Never |
+| **Authentication** | WebAuthn RP_ID defaults to IP/hostname | Never — configurable via env |
+| **Transport** | Direct TCP, WebRTC, or Tor | Never |
+| **Discovery** | QR codes, LAN mDNS, DHT, manual pubkey | Never |
+| **Media** | Content-addressed (IPFS CIDs) | Never |
+
+### Convenience Layer (Optional, Post-Deployment)
+
+After deployment, users may optionally add local hostnames:
+
+```bash
+# /etc/hosts entry for LAN convenience
+echo '<ip> mosiac.lan' >> /etc/hosts
+
+# mDNS broadcast (Avahi)
+avahi-publish -a -R mosiac.lan <ip>
+
+# LAN DNS (unbound/dnsmasq)
+local-data: "mosiac.lan A <ip>"
+```
+
+These are **never referenced in code**. They are post-deployment niceties that the deployment script may offer but the architecture never depends on.
+
+### The Deployment Contract
+
+When someone installs Mosiac (OCI, npm, Nix, K8s), the output says:
+
+```
+Your Mosiac node is running at http://<this-ip>:3000
+Your pubkey is: ed25519:<base64>
+Share this QR code to let others connect.
+```
+
+No domain. No DNS. No certificate authority. Just an IP, a port, and a cryptographic identity.
+
+---
+
 ## Current Status
 
 - [x] Repo cloned and rebranded to Mosiac (package.json, Dockerfile, paths.js)
