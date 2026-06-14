@@ -282,6 +282,47 @@ Mosiac will ship as:
 
 ---
 
+## Compatibility Guarantee: Total Haven Backward Compatibility
+
+Mosiac is an **additive layer** over Haven. Haven must continue working exactly as it did before Mosiac existed — no behavioral changes, no config migration, no database migration, no frontend changes.
+
+### The Rules
+
+| Rule | Example |
+|------|---------|
+| **Zero modifications to existing Haven routes** | New Mosiac routes are mounted separately (`/mosiac/*`) or appended to route files (`/api/auth/passkey/*`) |
+| **Zero modifications to existing Haven database schema** | Mosiac tables use `CREATE TABLE IF NOT EXISTS` and are added after Haven's existing tables |
+| **Zero modifications to existing Haven frontend** | Mosiac UI is in separate files (`identity.html`, `app-identity.js`, `mosiac-identity.css`) |
+| **Zero new required dependencies for Haven users** | New npm packages (`tweetnacl`, `@simplewebauthn/server`) are only required if Mosiac features are used |
+| **Zero config changes for existing Haven installs** | Mosiac reads its config from env vars that default to non-domain localhost values |
+| **Zero migration for existing Haven databases** | Identity tables are new — they don't touch users, channels, messages, etc. |
+
+### The One Database Rule
+
+Haven's database contains user chat data. Mosiac's database contains identity keys, passkeys, and contacts. **They coexist in the same SQLite file** but are completely independent. A query against Haven's tables never touches Mosiac's tables and vice versa.
+
+```sql
+-- Haven tables (untouched):
+CREATE TABLE users (...);
+CREATE TABLE channels (...);
+CREATE TABLE messages (...);
+
+-- Mosiac tables (added alongside, never modified):
+CREATE TABLE identities (...);
+CREATE TABLE passkeys (...);
+CREATE TABLE contacts (...);
+CREATE TABLE sessions (...);
+```
+
+### What This Means
+
+- `git pull` upstream Haven changes merge cleanly — Mosiac additions don't conflict
+- A fresh install of upstream Haven works identically with or without Mosiac code
+- Users who only want chat see no difference
+- Users who discover `/identity.html` get the Mosiac layer
+
+---
+
 ## Deployment Philosophy: Domain-Free by Default
 
 Mosiac must **never require** a domain name. It is designed to work on bare IP addresses, LAN hostnames, Tor onion addresses, or Tailscale IPs — whatever the user has. This is a hard architectural constraint, not a preference.
