@@ -370,9 +370,21 @@ const fileUpload = multer({
 // 50+ concurrent users joining a stream event don't trip the limiter. (#5323)
 app.use('/api/auth', authRoutes);
 
-// ── Mosiac QR/Contacts/Signing routes ───────────────────
-// Auth endpoints (WebAuthn, identity) are in /api/auth/*
-app.use('/mosiac', mosiacRoutes);
+// ── Feature-based route mounting ─────────────────────────
+// Controlled by FEATURES env var: "all" or comma-separated list
+const activeFeatures = (process.env.FEATURES || 'all').split(',').map(s => s.trim());
+const has = (f) => activeFeatures.includes('all') || activeFeatures.includes(f);
+
+if (has('chat')) {
+  // Chat is the default — Haven's full stack. No additional mount needed
+  // since authRoutes and socket handlers are always loaded.
+  console.log(`  [mosiac] chat enabled`);
+}
+
+if (has('identity') || has('profiles') || has('feeds')) {
+  console.log(`  [mosiac] identity/profiles/feeds routes at /mosiac/*`);
+  app.use('/mosiac', mosiacRoutes);
+}
 
 // ── Push notification VAPID public key endpoint ──────────
 app.get('/api/push/vapid-key', (req, res) => {

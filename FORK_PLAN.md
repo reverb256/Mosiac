@@ -606,6 +606,68 @@ Neocities integration is a Mosiac module that follows the Modularity and Composa
 - **Delegatable**: User can publish to Neocities or skip it entirely
 - **Graceful degradation**: Without Neocities, everything still works — profile served from local node
 
+---
+
+## Modular Runtime: FEATURES and CHAT_SERVER_URL
+
+Two env vars make the modular/Composability principles operational at the deployment level.
+
+### FEATURES: Choose What Runs
+
+Controls which subsystems are active. Set at container boot:
+
+```
+# Full stack (default)
+FEATURES=all
+
+# Chat only (Discord replacement, lightweight)
+FEATURES=chat
+
+# Identity + profiles + feeds only (no chat)
+FEATURES=identity,profiles,feeds
+
+# Identity only (just key management and WebAuthn)
+FEATURES=identity
+```
+
+When a feature is disabled, its routes are not mounted and its frontend elements are hidden. The server logs which features are active at boot:
+
+```
+[mosiac] chat enabled
+[mosiac] identity/profiles/feeds routes at /mosiac/*
+```
+
+### CHAT_SERVER_URL: Delegate Chat to Another Server
+
+When set, the frontend connects its socket.io and WebRTC to a remote server instead of the local one. Your identity, profiles, and feeds stay on your node — only the chat/voice/screenshare delegates.
+
+```
+# Point chat at a friend's server
+CHAT_SERVER_URL=https://friend.haven.lan
+
+# Or run your own chat server separately
+CHAT_SERVER_URL=http://chat-server:32100
+```
+
+The frontend fetches `/mosiac/config` at boot, reads `chat_server`, and passes it to `io()`:
+
+```javascript
+const cfg = await fetch('/mosiac/config').then(r => r.json());
+this.socket = io(cfg.chat_server || undefined, { auth: { token } });
+```
+
+If `CHAT_SERVER_URL` is unset, the frontend connects to the default origin (local). Zero config change for existing deployments.
+
+### What This Enables
+
+| Config | Identity | Chat | Profiles | Feeds |
+|--------|----------|------|----------|-------|
+| `FEATURES=all` | ✓ local | ✓ local | ✓ local | ✓ local |
+| `FEATURES=chat` | ✗ | ✓ local | ✗ | ✗ |
+| `FEATURES=identity,profiles,feeds` | ✓ local | ✗ | ✓ local | ✓ local |
+| `FEATURES=identity` + `CHAT_SERVER_URL=...` | ✓ local | ✓ remote | ✗ | ✗ |
+| `FEATURES=all` + `CHAT_SERVER_URL=...` | ✓ local | ✓ remote | ✓ local | ✓ local |
+
 ### The Composability Model
 
 ```

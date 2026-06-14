@@ -149,8 +149,17 @@ class HavenApp {
 
   // ── Initialization ────────────────────────────────────
 
-  _init() {
-    this.socket = io({
+  async _init() {
+    // Fetch runtime config to check for delegated services
+    let chatServer = null;
+    try {
+      const res = await fetch('/mosiac/config');
+      const cfg = await res.json();
+      chatServer = cfg.chat_server;
+      if (chatServer) console.log(`[mosiac] chat delegated to ${chatServer}`);
+    } catch {}
+
+    this.socket = io(chatServer || undefined, {
       auth: { token: this.token },
       reconnectionDelay: 1500,
       reconnectionDelayMax: 10000,

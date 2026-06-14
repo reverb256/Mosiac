@@ -15,6 +15,15 @@ const { getDb } = require('./database');
 /* ─── Health ─── */
 router.get('/health', (req, res) => res.json({ ok: true, mosiac: '0.1.0' }));
 
+/* ─── Runtime Config ─── */
+router.get('/config', (req, res) => {
+  res.json({
+    features: (process.env.FEATURES || 'all').split(',').map(s => s.trim()),
+    chat_server: process.env.CHAT_SERVER_URL || null,
+    identity_server: process.env.IDENTITY_SERVER_URL || null,
+  });
+});
+
 /* ─── Identity query (read-only — CRUD is in auth.js under /api/auth/identity/*) ─── */
 router.get('/identity/current', (req, res) => {
   try {
