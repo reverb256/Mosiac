@@ -1126,12 +1126,4 @@ function getDb() {
   return db;
 }
 
-/**
- * Returns the same database handle for Mosiac identity operations.
- * Identity tables coexist alongside Haven's existing tables.
- */
-function getIdentityDb() {
-  return db;
-}
-
-module.exports = { initDatabase, getDb, getIdentityDb };
+module.exports = { initDatabase, getDb };

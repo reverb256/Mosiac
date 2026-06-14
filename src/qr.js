@@ -99,7 +99,7 @@ function parseQR(scanned) {
 
 // ─── Contact management with QR discovery ─────────────────────────────────
 
-const db = require('./database');
+const { getDb } = require('./database');
 
 /**
  * Process a QR scan: parse the pubkey and save as a contact.
@@ -114,13 +114,14 @@ function processQRScan(scanned, label) {
     throw new Error('Invalid QR content: expected mosiac:// URI or Base64URL pubkey');
   }
 
-  db.addContact({
-    pubkey: parsed.pubkey,
-    label: label || null,
-    discoveredVia: 'qr',
-  });
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO contacts (pubkey, label, discovered_via)
+    VALUES (?, ?, 'qr')
+    ON CONFLICT(pubkey) DO UPDATE SET last_seen_at = datetime('now')
+  `).run(parsed.pubkey, label || null);
 
-  const contact = db.getContact(parsed.pubkey);
+  const contact = db.prepare('SELECT * FROM contacts WHERE pubkey = ?').get(parsed.pubkey);
   return {
     success: true,
     pubkey: parsed.pubkey,

@@ -12,7 +12,7 @@
 
 // ─── Base URL ──────────────────────────────────────────────────────────────
 
-const API = '/mosiac';
+const API = '';
 
 // ─── DOM refs ──────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ function coerceToBuffer(value) {
 
 async function checkConnection() {
   try {
-    const res = await fetch(`${API}/health`);
+    const res = await fetch(`/mosiac/health`);
     if (res.ok) {
       $('conn-status').textContent = 'connected';
       $('conn-status').classList.add('connected');
@@ -82,7 +82,7 @@ async function beginRegistration() {
   $('register-complete').classList.add('hidden');
 
   try {
-    const res = await fetch(`${API}/auth/register/begin`, {
+    const res = await fetch(`/api/auth/passkey/register/begin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: null }),
@@ -141,7 +141,7 @@ async function registerPasskey() {
     };
 
     // Send to server
-    const res = await fetch(`${API}/auth/register/complete`, {
+    const res = await fetch(`/api/auth/passkey/register/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -167,7 +167,7 @@ async function beginLogin() {
   $('login-error').classList.add('hidden');
 
   try {
-    const res = await fetch(`${API}/auth/login/begin`, {
+    const res = await fetch(`/api/auth/passkey/login/begin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -205,7 +205,7 @@ async function beginLogin() {
       },
     };
 
-    const verifyRes = await fetch(`${API}/auth/login/complete`, {
+    const verifyRes = await fetch(`/api/auth/passkey/login/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential: credentialJSON }),
@@ -228,7 +228,7 @@ async function beginLogin() {
 
 async function loadDashboard() {
   try {
-    const res = await fetch(`${API}/auth/me`);
+    const res = await fetch(`/api/auth/identity/current`);
     if (!res.ok) {
       showView('splash');
       return;
@@ -255,7 +255,7 @@ async function loadDashboard() {
 async function loadQR(pubkey) {
   const container = $('qr-container');
   try {
-    const res = await fetch(`${API}/qr/${encodeURIComponent(pubkey)}`);
+    const res = await fetch(`/mosiac/qr/${encodeURIComponent(pubkey)}`);
     if (!res.ok) throw new Error('QR generation failed');
 
     const svg = await res.text();
@@ -269,7 +269,7 @@ async function loadQR(pubkey) {
 
 async function loadContacts() {
   try {
-    const res = await fetch(`${API}/contacts`);
+    const res = await fetch(`/mosiac/contacts`);
     if (!res.ok) return;
     const data = await res.json();
     const list = $('contact-list');
@@ -294,7 +294,7 @@ async function loadContacts() {
 
     list.querySelectorAll('.remove').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await fetch(`${API}/api/contacts/${encodeURIComponent(btn.dataset.pubkey)}`, { method: 'DELETE' });
+        await fetch(`/mosiac/contacts/${encodeURIComponent(btn.dataset.pubkey)}`, { method: 'DELETE' });
         await loadContacts();
       });
     });
@@ -313,7 +313,7 @@ async function scanQR() {
   result.classList.remove('hidden');
 
   try {
-    const res = await fetch(`${API}/qr/scan`, {
+    const res = await fetch(`/mosiac/qr/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data }),
@@ -345,7 +345,7 @@ async function signData() {
 
   try {
     const data = JSON.parse(input.value);
-    const res = await fetch(`${API}/sign`, {
+    const res = await fetch(`/mosiac/sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data }),
@@ -367,7 +367,7 @@ async function verifyData() {
   const result = $('verify-result');
 
   try {
-    const res = await fetch(`${API}/verify`, {
+    const res = await fetch(`/mosiac/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ envelope: lastEnvelope }),
@@ -388,7 +388,7 @@ async function verifyData() {
 async function showIdentities() {
   showView('existingIdentities');
   try {
-    const res = await fetch(`${API}/identity`);
+    const res = await fetch(`/api/auth/identity`);
     if (!res.ok) throw new Error('Failed to load');
     const data = await res.json();
     const list = $('identities-list');
@@ -416,7 +416,7 @@ async function showIdentities() {
 // ─── Logout ────────────────────────────────────────────────────────────────
 
 async function logout() {
-  await fetch(`${API}/auth/logout`, { method: 'POST' });
+  await fetch(`/api/auth/passkey/logout`, { method: 'POST' });
   document.cookie = 'mosiac_session=; path=/; max-age=0';
   showView('splash');
 }
@@ -429,7 +429,7 @@ async function init() {
 
   // Check if already authenticated
   try {
-    const res = await fetch(`${API}/auth/me`);
+    const res = await fetch(`/api/auth/identity/current`);
     if (res.ok) {
       await loadDashboard();
       return;

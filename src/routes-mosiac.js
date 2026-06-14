@@ -1,92 +1,27 @@
 'use strict';
 
 /**
- * Mosiac Identity Routes — mounted alongside Haven's existing routes.
- * All identity/auth/QR/contact/signing endpoints in one place.
+ * Mosiac Routes — non-auth endpoints that don't fit in auth.js.
+ * Auth endpoints (WebAuthn, identity CRUD) now live in src/auth.js
+ * under /api/auth/passkey/* and /api/auth/identity/*.
  */
 const express = require('express');
 const router = express.Router();
-const path = require('path');
 
 const identity = require('./identity');
 const qr = require('./qr');
-const passkey = require('./passkey');
-const { getIdentityDb } = require('./database');
+const { getDb } = require('./database');
 
 /* ─── Health ─── */
 router.get('/health', (req, res) => res.json({ ok: true, mosiac: '0.1.0' }));
 
-/* ─── Identity ─── */
-router.get('/identity', (req, res) => {
-  try {
-    const rows = getIdentityDb().prepare('SELECT id, pubkey, label, is_current, created_at FROM identities ORDER BY created_at DESC').all();
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
+/* ─── Identity query (read-only — CRUD is in auth.js under /api/auth/identity/*) ─── */
 router.get('/identity/current', (req, res) => {
   try {
-    const row = getIdentityDb().prepare('SELECT * FROM identities WHERE is_current = 1').get();
+    const row = getDb().prepare('SELECT * FROM identities WHERE is_current = 1').get();
     if (!row) return res.json({ identity: null });
     res.json({ identity: { id: row.id, pubkey: row.pubkey, label: row.label, pubkeyHex: identity.toHex(identity.fromBase64URL(row.pubkey)) } });
   } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/identity/generate', (req, res) => {
-  try {
-    const kp = identity.generateKeyPair();
-    const ident = getIdentityDb().prepare(`
-      INSERT INTO identities (pubkey, privkey, label, is_current)
-      VALUES (?, ?, ?, (SELECT COUNT(*) = 0 FROM identities))
-    `).run(kp.pubkey, kp.privkey, req.body?.label || null);
-    res.json({ identityId: ident.lastInsertRowid, pubkey: kp.pubkey, pubkeyHex: kp.pubkeyHex });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-/* ─── WebAuthn Registration ─── */
-router.post('/auth/register/begin', async (req, res) => {
-  try {
-    const result = passkey.beginRegistration({ label: req.body?.label });
-    res.json(result);
-  } catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-router.post('/auth/register/complete', async (req, res) => {
-  try {
-    const result = await passkey.completeRegistration({
-      challenge: req.body.challenge,
-      credential: req.body.credential,
-      nickname: req.body.nickname,
-    });
-    res.json(result);
-  } catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-/* ─── WebAuthn Authentication ─── */
-router.post('/auth/login/begin', async (req, res) => {
-  try {
-    const result = passkey.beginAuthentication();
-    res.json(result);
-  } catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-router.post('/auth/login/complete', async (req, res) => {
-  try {
-    const result = await passkey.completeAuthentication({ credential: req.body.credential });
-    res.json(result);
-  } catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-router.post('/auth/logout', (req, res) => {
-  const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
-  if (token) passkey.invalidateSession(token);
-  res.json({ ok: true });
-});
-
-router.get('/auth/me', passkey.requireAuth, (req, res) => {
-  const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(req.identity.identityId);
-  if (!ident) return res.status(404).json({ error: 'Identity not found' });
-  res.json({ identityId: ident.id, pubkey: ident.pubkey, label: ident.label });
 });
 
 /* ─── QR ─── */
@@ -107,24 +42,25 @@ router.post('/qr/scan', (req, res) => {
 /* ─── Contacts ─── */
 router.get('/contacts', (req, res) => {
   try {
-    const rows = getIdentityDb().prepare('SELECT * FROM contacts ORDER BY first_seen_at DESC').all();
+    const rows = getDb().prepare('SELECT * FROM contacts ORDER BY first_seen_at DESC').all();
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.delete('/contacts/:pubkey', (req, res) => {
   try {
-    getIdentityDb().prepare('DELETE FROM contacts WHERE pubkey = ?').run(req.params.pubkey);
+    getDb().prepare('DELETE FROM contacts WHERE pubkey = ?').run(req.params.pubkey);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 /* ─── Signing (event bus foundation) ─── */
-router.post('/sign', passkey.requireAuth, (req, res) => {
+router.post('/sign', (req, res) => {
   try {
-    const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(req.identity.identityId);
-    if (!ident) return res.status(404).json({ error: 'Identity not found' });
-    const signed = identity.signJSON(req.body.data, ident.privkey, ident.pubkey);
+    const { pubkey, data } = req.body;
+    const row = getDb().prepare('SELECT * FROM identities WHERE pubkey = ?').get(pubkey);
+    if (!row) return res.status(404).json({ error: 'Identity not found' });
+    const signed = identity.signJSON(data, row.privkey, row.pubkey);
     res.json(signed);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });

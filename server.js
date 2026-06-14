@@ -370,7 +370,8 @@ const fileUpload = multer({
 // 50+ concurrent users joining a stream event don't trip the limiter. (#5323)
 app.use('/api/auth', authRoutes);
 
-// ── Mosiac Identity routes ───────────────────────────────
+// ── Mosiac QR/Contacts/Signing routes ───────────────────
+// Auth endpoints (WebAuthn, identity) are in /api/auth/*
 app.use('/mosiac', mosiacRoutes);
 
 // ── Push notification VAPID public key endpoint ──────────

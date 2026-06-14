@@ -14,7 +14,7 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const crypto = require('crypto');
-const { getIdentityDb } = require('./database');
+const { getDb } = require('./database');
 
 const RP_NAME = 'Mosiac';
 const RP_ID = process.env.MOSIAC_RP_ID || 'localhost';
@@ -32,7 +32,7 @@ function beginRegistration({ label } = {}) {
   const pubkey = Buffer.from(kp.publicKey).toString('base64url');
   const privkey = Buffer.from(kp.secretKey).toString('base64url');
 
-  const ident = getIdentityDb().prepare(`
+  const ident = getDb().prepare(`
     INSERT INTO identities (pubkey, privkey, label, is_current)
     VALUES (?, ?, ?, (SELECT COUNT(*) = 0 FROM identities))
   `).run(pubkey, privkey, label || null);
@@ -74,7 +74,7 @@ async function completeRegistration({ challenge, credential, nickname }) {
     counter,
   });
 
-  getIdentityDb().prepare(`
+  getDb().prepare(`
     INSERT INTO passkeys (id, identity_id, credential, transports, nickname)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET credential=excluded.credential, counter=0
@@ -105,7 +105,7 @@ async function completeAuthentication({ credential }) {
   if (!state || state.expiresAt < Date.now()) throw new Error('Challenge expired');
 
   const credId = typeof credential.id === 'string' ? credential.id : Buffer.from(credential.id).toString('base64url');
-  const row = getIdentityDb().prepare('SELECT * FROM passkeys WHERE id = ?').get(credId);
+  const row = getDb().prepare('SELECT * FROM passkeys WHERE id = ?').get(credId);
   if (!row) throw new Error('Passkey credential not found');
 
   const storedCred = JSON.parse(row.credential);
@@ -122,13 +122,13 @@ async function completeAuthentication({ credential }) {
   });
   if (!verification.verified) throw new Error('Authentication verification failed');
 
-  getIdentityDb().prepare('UPDATE passkeys SET counter = ?, last_used_at = datetime(\'now\') WHERE id = ?').run(verification.authenticationInfo.newCounter, credId);
-  const ident = getIdentityDb().prepare('SELECT * FROM identities WHERE id = ?').get(row.identity_id);
+  getDb().prepare('UPDATE passkeys SET counter = ?, last_used_at = datetime(\'now\') WHERE id = ?').run(verification.authenticationInfo.newCounter, credId);
+  const ident = getDb().prepare('SELECT * FROM identities WHERE id = ?').get(row.identity_id);
   if (!ident) throw new Error('Identity not found');
 
   const sessionToken = crypto.randomBytes(48).toString('base64url');
   const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
-  getIdentityDb().prepare(`
+  getDb().prepare(`
     INSERT INTO sessions (token_hash, identity_id, pubkey, expires_at)
     VALUES (?, ?, ?, datetime('now', '+7 days'))
   `).run(tokenHash, ident.id, ident.pubkey);
@@ -142,14 +142,14 @@ async function completeAuthentication({ credential }) {
 function validateSession(token) {
   if (!token) return null;
   const hash = crypto.createHash('sha256').update(token).digest('hex');
-  const row = getIdentityDb().prepare("SELECT * FROM sessions WHERE token_hash = ? AND expires_at > datetime('now')").get(hash);
+  const row = getDb().prepare("SELECT * FROM sessions WHERE token_hash = ? AND expires_at > datetime('now')").get(hash);
   return row ? { identityId: row.identity_id, pubkey: row.pubkey } : null;
 }
 
 function invalidateSession(token) {
   if (!token) return;
   const hash = crypto.createHash('sha256').update(token).digest('hex');
-  getIdentityDb().prepare('DELETE FROM sessions WHERE token_hash = ?').run(hash);
+  getDb().prepare('DELETE FROM sessions WHERE token_hash = ?').run(hash);
 }
 
 /* ─── Express middleware ─── */

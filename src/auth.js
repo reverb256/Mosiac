@@ -9,6 +9,7 @@ const https = require('https');
 const http = require('http');
 
 const router = express.Router();
+const passkey = require('./passkey');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('FATAL: JWT_SECRET is not set. Check your .env file or let server.js auto-generate it.');
@@ -1603,6 +1604,80 @@ router.options('/SSO/authenticate', (req, res) => {
     res.set('Access-Control-Max-Age', '600');
   }
   res.sendStatus(204);
+});
+
+// ─── WebAuthn (Passkey) Routes ────────────────────────────
+
+router.post('/passkey/register/begin', async (req, res) => {
+  try {
+    const result = passkey.beginRegistration({ label: req.body?.label });
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/passkey/register/complete', async (req, res) => {
+  try {
+    const result = await passkey.completeRegistration({
+      challenge: req.body.challenge,
+      credential: req.body.credential,
+      nickname: req.body.nickname,
+    });
+    const token = generateToken({ id: result.identityId, username: 'passkey-'.concat(result.pubkey?.slice(0, 8)), isPasskey: true });
+    if (token) res.cookie('token', token, { httpOnly: true, sameSite: 'strict' });
+    res.json(Object.assign({}, result, { token }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/passkey/login/begin', async (req, res) => {
+  try {
+    const result = passkey.beginAuthentication();
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/passkey/login/complete', async (req, res) => {
+  try {
+    const result = await passkey.completeAuthentication({ credential: req.body.credential });
+    const user = { id: result.identityId, username: result.pubkey?.slice(0, 16) };
+    const token = generateToken({ id: user.id, username: user.username, isPasskey: true });
+    if (token) res.cookie('token', token, { httpOnly: true, sameSite: 'strict' });
+    res.json(Object.assign({}, result, { token }));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/passkey/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ ok: true });
+});
+
+router.post('/identity/generate', (req, res) => {
+  try {
+    const identity = require('./identity');
+    const kp = identity.generateKeyPair();
+    const db = getDb();
+    const ident = db.prepare(`
+      INSERT INTO identities (pubkey, privkey, label, is_current)
+      VALUES (?, ?, ?, (SELECT COUNT(*) = 0 FROM identities))
+    `).run(kp.pubkey, kp.privkey, req.body?.label || null);
+    res.json({ identityId: ident.lastInsertRowid, pubkey: kp.pubkey, pubkeyHex: kp.pubkeyHex });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/identity', (req, res) => {
+  try {
+    const rows = getDb().prepare('SELECT id, pubkey, label, is_current, created_at FROM identities ORDER BY created_at DESC').all();
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = { router, verifyToken, generateChannelCode, generateToken, authLimiter };
