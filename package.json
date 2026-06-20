@@ -21,7 +21,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "localtunnel": "^2.0.2",
-    "multer": "^2.0.2",
+    "multer": "^2.2.0",
     "otpauth": "^9.5.0",
     "qrcode": "^1.5.4",
     "@simplewebauthn/server": "^9.0.0",
