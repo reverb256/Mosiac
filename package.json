@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "mosiac",
   "version": "3.29.0",
   "description": "Mosaic - sovereign identity + communications platform",
@@ -26,7 +26,7 @@
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "web-push": "^3.6.7",
-    "@simplewebauthn/server": "^9.0.0",
+    "@simplewebauthn/server": "^13.3.2",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
     "uuid": "^14.0.0"
