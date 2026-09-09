@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "mosiac",
   "version": "3.29.0",
   "description": "Mosaic - sovereign identity + communications platform",
@@ -21,7 +21,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "localtunnel": "^2.0.2",
-    "multer": "^2.0.2",
+    "multer": "^2.3.0",
     "otpauth": "^9.5.0",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
